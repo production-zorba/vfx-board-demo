@@ -279,7 +279,7 @@
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.85);
+      return canvas.toDataURL('image/webp', 0.6);
     }
 
     function selectRow(rowId) {
@@ -1420,3 +1420,4 @@
 </body>
 
 </html>
+
