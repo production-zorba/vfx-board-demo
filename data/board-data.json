@@ -1,7 +1,7 @@
 {
   "fps": "25",
   "letter": "A",
-  "pad": "3",
+  "pad": "2",
   "meta": {
     "camera": "",
     "colorSpace": "",
@@ -20,9 +20,26 @@
       "link": "",
       "fcl": "",
       "priority": "1ST",
-      "pic": "Pending",
-      "status": "Not Started",
-      "tasks": []
+      "pic": "Anh Thắng",
+      "status": "WIP",
+      "tasks": [
+        {
+          "task": "Color Grade",
+          "p": 89
+        },
+        {
+          "task": "Tracking",
+          "p": 37
+        },
+        {
+          "task": "3D Assets",
+          "p": 50
+        },
+        {
+          "task": "Render",
+          "p": 88
+        }
+      ]
     },
     {
       "shot": "A_002",
@@ -33,9 +50,22 @@
       "link": "",
       "fcl": "",
       "priority": "1ST",
-      "pic": "Pending",
+      "pic": "Anh Hiếu",
       "status": "Not Started",
-      "tasks": []
+      "tasks": [
+        {
+          "task": "3D Assets",
+          "p": 85
+        },
+        {
+          "task": "3D Environment",
+          "p": 74
+        },
+        {
+          "task": "Lookdev",
+          "p": 45
+        }
+      ]
     }
   ]
 }
