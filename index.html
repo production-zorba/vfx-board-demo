@@ -746,12 +746,12 @@
 
       const tdPic = document.createElement('td');
       tdPic.appendChild(createChipDropdown({
-        label: "PIC", items: PICS, mode: "single", defaultValue: "Anh Lộc", theme: "pic"
+        label: "PIC", items: PICS, mode: "single", defaultValue: "Pending", theme: "pic"
       }));
 
       const tdStatus = document.createElement('td');
       tdStatus.appendChild(createChipDropdown({
-        label: "Overall Status", items: STATUSES, mode: "single", defaultValue: "DONE", theme: "status"
+        label: "Overall Status", items: STATUSES, mode: "single", defaultValue: "Not Started", theme: "status"
       }));
 
       const tdActions = document.createElement('td');
@@ -1195,5 +1195,6 @@
     })();
   </script>
 </body>
+
 
 </html>
