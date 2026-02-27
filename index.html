@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VFX Board - Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header>
+    <div>
+      <h1>VFX Breakdown - BB Tran</h1>
+      <div class="sub"></div>
+    </div>
+  </header>
+
+  <main class="layout" id="layout">
+    <section class="panel" id="topSplit">
+
+      <div id="panel-3" class="panel-col">
+        <div class="panel-title"><b>INFORMATION</b></div>
+
+        <div class="field">
+          <label>Camera</label>
+          <input id="metaCamera" type="text" placeholder="e.g. Alexa Mini LF" />
+        </div>
+
+        <div class="field">
+          <label>Color Space</label>
+          <input id="metaColorSpace" type="text" placeholder="e.g. ACEScg / Rec.709" />
+        </div>
+
+        <div class="field">
+          <label>Resolution</label>
+          <input id="metaResolution" type="text" placeholder="e.g. 3840×2160" />
+        </div>
+
+        <div class="field">
+          <label>Treatment</label>
+          <input id="metaTreatment" type="text" placeholder="e.g. clean / soft / heavy grade" />
+        </div>
+
+        <div class="field">
+          <label>Figma board</label>
+          <input id="metaFigma" type="text" placeholder="Paste Figma link" />
+        </div>
+
+        <div class="help">
+          Panel-3 is saved together with the board (localStorage).
+        </div>
+      </div>
+
+      <div id="panel-1" class="panel-col">
+        <div class="panel-title"><b>OFFLINE</b></div>
+
+        <input id="file" type="file" accept="video/mp4,video/*" hidden />
+        <div class="file-ui">
+          <button type="button" class="btn" id="pickFile">Choose another video</button>
+          <span class="file-name" id="fileName"></span>
+        </div>
+
+        <video id="video" controls playsinline src="251212_DBAPH_BBTRAN_OFFLINE_V3.mp4"></video>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="captureNew" class="btn primary" disabled>Capture → New Row</button>
+          <button id="captureSelected" class="btn" disabled>Capture → Selected Row</button>
+          <button id="clearAll" class="btn danger">Clear Board</button>
+        </div>
+
+        <div class="help" style="margin-top:10px;">
+          Click a row to select it. Use “Capture → Selected Row” to replace the thumbnail.
+        </div>
+      </div>
+
+      <div id="panel-2" class="panel-col">
+        <div class="panel-title"><b>BOARD REFERENCE</b></div>
+
+        <div class="row-3">
+          <div class="field">
+            <label>Project FPS</label>
+            <input id="fps" type="number" min="1" step="0.001" value="25" />
+          </div>
+
+          <div class="field">
+            <label>Shot Prefix Letter</label>
+            <select id="letter"></select>
+          </div>
+
+          <div class="field">
+            <label>Shot Padding</label>
+            <select id="pad">
+              <option value="2">_01</option>
+              <option value="3" selected>_001</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="help">
+          “Sec IN” saves the capture time. Frame In = Sec IN × FPS.
+        </div>
+
+        <div id="path-link" class="field" style="margin-bottom:12px;">
+          <label for="videoPathDisplay">Video Path (Internal Reference)</label>
+          <textarea id="videoPathDisplay" rows="2"
+            placeholder="Paste internal server path here (e.g. Z:\2025\...)"></textarea>
+
+          <div class="help">
+            This is for reference only. It will be saved locally and restored on refresh.
+          </div>
+
+          <button id="saveBoard" class="btn btn-save">💾 Save Board</button>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="splitter splitter--h" id="splitH" role="separator" aria-orientation="horizontal" tabindex="0"></div>
+
+    <section class="vfx-board">
+      <table class="vfx-table">
+        <thead>
+          <tr>
+            <th class="col-no">NO.</th>
+            <th class="col-priority">PRIORITY</th>
+            <th class="col-shot">SHOT NAME</th>
+            <th class="col-thumb">THUMBNAIL</th>
+            <th class="col-ref">NOTE</th>
+            <th class="col-desc">VFX PROGESS</th>
+            <th class="col-in">FRAME IN</th>
+            <th class="col-secin">SEC IN</th>
+            <th class="col-link">LINK</th>
+            <th class="col-fcl">FCL</th>
+            <th class="col-pic">PIC</th>
+            <th class="col-status">OVERALL STATUS</th>
+            <th class="col-actions">ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ============================================================
+    // 1) DOM REFERENCES
+    // ============================================================
+    const fileInput = document.getElementById('file');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+
+    const btnCaptureNew = document.getElementById('captureNew');
+    const btnCaptureSelected = document.getElementById('captureSelected');
+    const btnClearAll = document.getElementById('clearAll');
+
+    const fpsEl = document.getElementById('fps');
+    const letterEl = document.getElementById('letter');
+    const padEl = document.getElementById('pad');
+
+    const tbody = document.getElementById('tbody');
+    const toast = document.getElementById('toast');
+
+    const videoPathDisplay = document.getElementById("videoPathDisplay");
+
+    // Custom file UI
+    const pickFileBtn = document.getElementById('pickFile');
+    const fileNameEl = document.getElementById('fileName');
+
+    // Panel-3 fields
+    const metaCamera = document.getElementById('metaCamera');
+    const metaColorSpace = document.getElementById('metaColorSpace');
+    const metaResolution = document.getElementById('metaResolution');
+    const metaTreatment = document.getElementById('metaTreatment');
+    const metaFigma = document.getElementById('metaFigma');
+
+    // ============================================================
+    // 2) CONFIG DATA
+    // ============================================================
+    const PRIORITIES = ["1ST", "2ND", "PENDING"];
+    const TASKS = [
+      "Color Grade", "Retouch", "Tracking", "Roto/Key",
+      "3D Assets", "3D Environment", "Anim", "Lookdev", "Render", "Matchmove",
+      "COMP"
+    ];
+    const PICS = ["Anh Lộc", "Anh Hiếu", "Anh Thắng", "Anh Khoa", "Anh Phát", "Anh Philip", "Ngân", "Tiến", "Pending"];
+    const STATUSES = ["Not Starting", "WIP", "DONE", "APPROVED"];
+
+    // ============================================================
+    // 3) RUNTIME STATE
+    // ============================================================
+    let rowCount = 0;
+    let selectedRowId = null;
+    const letterCounts = Object.create(null);
+    let draggedRow = null;
+
+    // ============================================================
+    // 4) INIT: Populate letter dropdown A-Z
+    // ============================================================
+    (function initLetterDropdown() {
+      if (!letterEl) return;
+      if (letterEl.options.length > 0) return;
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((l) => {
+        const opt = document.createElement("option");
+        opt.value = l;
+        opt.textContent = l;
+        if (l === "A") opt.selected = true;
+        letterEl.appendChild(opt);
+      });
+    })();
+
+    // ============================================================
+    // 4.5) FILE NAME DISPLAY
+    // ============================================================
+    function getNameFromVideoSrc() {
+      const src = video?.getAttribute('src') || video?.src || "";
+      if (!src) return "";
+      const clean = src.split('?')[0].split('#')[0];
+      return clean.split('/').pop() || "";
+    }
+
+    function setDisplayedFileName(name) {
+      if (!fileNameEl) return;
+      fileNameEl.textContent = name || "No video selected";
+      fileNameEl.title = name || "";
+    }
+
+    setDisplayedFileName(getNameFromVideoSrc());
+    pickFileBtn?.addEventListener('click', () => fileInput?.click());
+
+    // ============================================================
+    // 5) UTILITIES
+    // ============================================================
+    function showToast(msg) {
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1400);
+    }
+
+    function padNumber(n, digits) {
+      return String(n).padStart(digits, '0');
+    }
+
+    function secondsToTC(sec, fps) {
+      const totalFrames = Math.max(0, Math.round(sec * fps));
+      const fpsInt = Math.max(1, Math.round(fps));
+      const ff = totalFrames % fpsInt;
+      const totalSeconds = Math.floor(totalFrames / fpsInt);
+      const ss = totalSeconds % 60;
+      const mm = Math.floor(totalSeconds / 60) % 60;
+      const hh = Math.floor(totalSeconds / 3600);
+      const two = (x) => String(x).padStart(2, '0');
+      return `${two(hh)}:${two(mm)}:${two(ss)}:${two(ff)}`;
+    }
+
+    function captureFrameDataUrl() {
+      if (!video || !video.videoWidth || !video.videoHeight) return null;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    }
+
+    function selectRow(rowId) {
+      selectedRowId = rowId;
+      [...tbody.querySelectorAll('tr')].forEach(tr => {
+        tr.classList.toggle('selected', tr.dataset.rowId === selectedRowId);
+      });
+      if (btnCaptureSelected) btnCaptureSelected.disabled = !selectedRowId;
+    }
+
+    function closeAllDropdowns(exceptEl = null) {
+      document.querySelectorAll('.chipdd.open').forEach(dd => {
+        if (exceptEl && dd === exceptEl) return;
+        dd.classList.remove('open');
+      });
+    }
+    document.addEventListener('click', () => closeAllDropdowns());
+
+    // ============================================================
+    // 6) NOTE TEXTAREA: AUTO-GROW + EXPAND ON FOCUS
+    // ============================================================
+    function autoGrowTextarea(el) {
+  el.style.height = "auto";
+  el.style.height = (el.scrollHeight + 2) + "px"; // +2px buffer
+}
+    tbody.addEventListener("input", (e) => {
+      const ta = e.target.closest("textarea.note-input");
+      if (!ta) return;
+      autoGrowTextarea(ta);
+    });
+
+    tbody.addEventListener("focusin", (e) => {
+      const ta = e.target.closest("textarea.note-input");
+      if (!ta) return;
+      ta.classList.add("is-focus");
+      autoGrowTextarea(ta);
+    });
+
+    tbody.addEventListener("focusout", (e) => {
+      const ta = e.target.closest("textarea.note-input");
+      if (!ta) return;
+      ta.classList.remove("is-focus");
+      autoGrowTextarea(ta); // keep correct height after leaving
+    });
+
+    // ============================================================
+    // 7) SEC IN: CLICK-TO-PLAY
+    // ============================================================
+    function playAtSeconds(sec) {
+      if (!video || !video.src) return showToast('Load a video first');
+      if (!Number.isFinite(sec) || sec < 0) return;
+
+      const trySeek = () => {
+        const dur = Number.isFinite(video.duration) ? video.duration : null;
+        const target = dur ? Math.min(Math.max(0, sec), Math.max(0, dur - 0.01)) : Math.max(0, sec);
+
+        video.currentTime = target;
+        const p = video.play();
+        if (p && typeof p.catch === 'function') p.catch(() => { });
+
+        showToast(`▶ ${target.toFixed(3)}s`);
+      };
+
+      if (video.readyState < 1) {
+        video.addEventListener('loadedmetadata', trySeek, { once: true });
+        return;
+      }
+      trySeek();
+    }
+
+    tbody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.sec-in-btn');
+      if (!btn) return;
+      const sec = parseFloat(btn.dataset.sec || '');
+      if (Number.isFinite(sec)) playAtSeconds(sec);
+    });
+
+    // ============================================================
+    // 8) SHOT NAMING
+    // ============================================================
+    function nextShotName() {
+      const letter = (letterEl?.value || "A").toUpperCase();
+      const padDigits = parseInt(padEl?.value || "2", 10) || 2;
+
+      const current = (letterCounts[letter] ?? 0);
+      const next = current + 1;
+      letterCounts[letter] = next;
+
+      return `${letter}_${padNumber(next, padDigits)}`;
+    }
+
+    // ============================================================
+    // 9) CHIP COLOR MAPS (DIFFERENT PER VALUE)
+    // ============================================================
+    const CHIP_STYLE = {
+      priority: {
+        "1ST": { bg: "#1f4ed8", fg: "#ffffff", soft: "#eaf1ff", softBorder: "#bcd0ff", softFg: "#123aa6" },
+        "2ND": { bg: "#4f46e5", fg: "#ffffff", soft: "#eef2ff", softBorder: "#c7d2fe", softFg: "#3730a3" },
+        "PENDING": { bg: "#b45309", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#7c2d12" }
+      },
+      status: {
+        "Not Starting": { bg: "#6b7280", fg: "#ffffff", soft: "#f3f4f6", softBorder: "#d1d5db", softFg: "#374151" },
+        "WIP": { bg: "#f97316", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#9a3412" },
+        "DONE": { bg: "#1f4ed8", fg: "#ffffff", soft: "#eaf1ff", softBorder: "#bcd0ff", softFg: "#123aa6" },
+        "APPROVED": { bg: "#16a34a", fg: "#ffffff", soft: "#ecfdf5", softBorder: "#bbf7d0", softFg: "#166534" }
+      },
+      pic: {
+        "Anh Lộc": { bg: "#1f7a3a", fg: "#ffffff", soft: "#edf7f0", softBorder: "#d4ecd9", softFg: "#155a2b" },
+        "Anh Hiếu": { bg: "#0ea5e9", fg: "#ffffff", soft: "#e0f2fe", softBorder: "#bae6fd", softFg: "#075985" },
+        "Anh Thắng": { bg: "#7c3aed", fg: "#ffffff", soft: "#f3e8ff", softBorder: "#e9d5ff", softFg: "#5b21b6" },
+        "Anh Khoa": { bg: "#db2777", fg: "#ffffff", soft: "#fce7f3", softBorder: "#fbcfe8", softFg: "#9d174d" },
+        "Anh Phát": { bg: "#f59e0b", fg: "#111827", soft: "#fffbeb", softBorder: "#fde68a", softFg: "#92400e" },
+        "Anh Philip": { bg: "#111827", fg: "#ffffff", soft: "#f3f4f6", softBorder: "#d1d5db", softFg: "#111827" },
+        "Ngân": { bg: "#14b8a6", fg: "#ffffff", soft: "#ecfeff", softBorder: "#a5f3fc", softFg: "#0f766e" },
+        "Tiến": { bg: "#22c55e", fg: "#ffffff", soft: "#ecfdf5", softBorder: "#bbf7d0", softFg: "#166534" },
+        "Pending": { bg: "#b45309", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#7c2d12" }
+      }
+    };
+
+    function slugify(str) {
+      return String(str).trim().toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/\-+/g, '-');
+    }
+
+    // ============================================================
+    // 10) CHIP DROPDOWN COMPONENT
+    // ============================================================
+    let suppressNextChipClick = false;
+
+    function createChipDropdown({ label, items, mode = "single", defaultValue = null, theme = null }) {
+      const dd = document.createElement('div');
+      dd.className = 'chipdd';
+      dd.dataset.theme = theme || "";
+      dd.dataset.value = "";
+
+      const summary = document.createElement('div');
+      summary.className = 'chipdd__summary';
+      summary.innerHTML = `<span class="summary-text"></span><span class="caret">v</span>`;
+      const summaryText = summary.querySelector('.summary-text');
+
+      const menu = document.createElement('div');
+      menu.className = 'chipdd__menu';
+      menu.innerHTML = `
+        <div class="menu-title">
+          <div class="label">${label}</div>
+          <div class="hint">${mode === "multi" ? "multi" : "single"}</div>
+        </div>
+        <div class="chips-wrap"></div>
+      `;
+      const chipsWrap = menu.querySelector('.chips-wrap');
+
+      function applyThemeClass(chip) {
+        if (!theme) return;
+        chip.classList.add(theme);
+        chip.classList.add(`${theme}-${slugify(chip.dataset.value)}`);
+      }
+
+      function applySingleChipSkin(chip) {
+        if (!theme) return;
+        const m = CHIP_STYLE?.[theme]?.[chip.dataset.value];
+        if (!m) return;
+
+        // soft style by default
+        chip.style.background = m.soft;
+        chip.style.borderColor = m.softBorder;
+        chip.style.color = m.softFg;
+      }
+
+      function applySingleChipActiveSkin(chip, active) {
+        if (!theme) return;
+        const m = CHIP_STYLE?.[theme]?.[chip.dataset.value];
+        if (!m) return;
+
+        if (active) {
+          chip.style.background = m.bg;
+          chip.style.borderColor = "transparent";
+          chip.style.color = m.fg;
+        } else {
+          chip.style.background = m.soft;
+          chip.style.borderColor = m.softBorder;
+          chip.style.color = m.softFg;
+        }
+      }
+
+      function syncSummaryToSelected() {
+        if (!theme) return;
+
+        if (mode === "multi") {
+          dd.dataset.value = "multi";
+          dd.style.removeProperty('--sum-bg');
+          dd.style.removeProperty('--sum-fg');
+          dd.style.removeProperty('--sum-bd');
+          return;
+        }
+
+        const selected = chipsWrap.querySelector('.chip.active');
+        const val = selected ? selected.dataset.value : "";
+        dd.dataset.value = val;
+
+        const m = CHIP_STYLE?.[theme]?.[val];
+        if (!m) {
+          dd.style.removeProperty('--sum-bg');
+          dd.style.removeProperty('--sum-fg');
+          dd.style.removeProperty('--sum-bd');
+          return;
+        }
+
+        dd.style.setProperty('--sum-bg', m.bg);
+        dd.style.setProperty('--sum-fg', m.fg);
+        dd.style.setProperty('--sum-bd', 'transparent');
+      }
+
+      function setChipProgress(chip, p) {
+        const clamped = Math.max(0, Math.min(100, Math.round(p)));
+        chip.dataset.p = String(clamped);
+        chip.style.setProperty('--p', clamped);
+
+        let fillColor;
+        if (clamped <= 25) fillColor = '#ef4444';
+        else if (clamped <= 50) fillColor = '#f97316';
+        else if (clamped <= 75) fillColor = '#facc15';
+        else fillColor = '#22c55e';
+
+        chip.style.setProperty('--fill', fillColor);
+
+        const pct = chip.querySelector('.chip-pct');
+        if (pct) pct.textContent = `${clamped}%`;
+      }
+
+      function enableDragFill(chip) {
+        let dragging = false;
+        let moved = false;
+
+        const getClientX = (e) => (e.touches?.[0] ? e.touches[0].clientX : e.clientX);
+
+        const setFromEvent = (e) => {
+          const rect = chip.getBoundingClientRect();
+          const x = getClientX(e) - rect.left;
+          const pct = (x / rect.width) * 100;
+          setChipProgress(chip, pct);
+        };
+
+        const onMove = (e) => {
+          if (!dragging) return;
+          moved = true;
+          setFromEvent(e);
+          e.preventDefault();
+        };
+
+        const onUp = () => {
+          if (!dragging) return;
+          dragging = false;
+
+          if (moved) {
+            suppressNextChipClick = true;
+            setTimeout(() => { suppressNextChipClick = false; }, 0);
+          }
+
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('touchend', onUp);
+        };
+
+        chip.addEventListener('pointerdown', (e) => {
+          if (!chip.classList.contains('active')) return;
+          dragging = true;
+          moved = false;
+          chip.setPointerCapture?.(e.pointerId);
+          setFromEvent(e);
+          window.addEventListener('pointermove', onMove, { passive: false });
+          window.addEventListener('pointerup', onUp);
+          e.preventDefault();
+        });
+
+        chip.addEventListener('touchstart', (e) => {
+          if (!chip.classList.contains('active')) return;
+          dragging = true;
+          moved = false;
+          setFromEvent(e);
+          window.addEventListener('touchmove', onMove, { passive: false });
+          window.addEventListener('touchend', onUp);
+          e.preventDefault();
+        }, { passive: false });
+      }
+
+      items.forEach(it => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'chip';
+        chip.dataset.value = it;
+        chip.innerHTML = `<span class="chip-label">${it}</span><span class="chip-pct"></span>`;
+
+        applyThemeClass(chip);
+
+        const isActive =
+          (mode === 'single' && defaultValue === it) ||
+          (mode === 'multi' && Array.isArray(defaultValue) && defaultValue.includes(it));
+
+        if (mode === "single" && theme) {
+          applySingleChipSkin(chip);
+          applySingleChipActiveSkin(chip, isActive);
+        }
+
+        if (isActive) {
+          chip.classList.add('active');
+          if (mode === 'multi') setChipProgress(chip, 50);
+        } else {
+          chip.querySelector('.chip-pct').textContent = '';
+        }
+
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+
+          if (mode === 'multi' && suppressNextChipClick) {
+            e.preventDefault();
+            return;
+          }
+
+          if (mode === 'single') {
+            chipsWrap.querySelectorAll('.chip').forEach(c => {
+              c.classList.remove('active');
+              if (theme) applySingleChipActiveSkin(c, false);
+            });
+
+            chip.classList.add('active');
+            if (theme) applySingleChipActiveSkin(chip, true);
+
+          } else {
+            const becomingActive = !chip.classList.contains('active');
+            chip.classList.toggle('active');
+
+            if (becomingActive) {
+              setChipProgress(chip, 50);
+            } else {
+              chip.style.removeProperty('--p');
+              chip.dataset.p = '';
+              chip.querySelector('.chip-pct').textContent = '';
+            }
+          }
+
+          refreshSummary();
+        });
+
+        if (mode === 'multi') enableDragFill(chip);
+
+        chipsWrap.appendChild(chip);
+      });
+
+      function getValues() {
+        return [...chipsWrap.querySelectorAll('.chip.active')].map(c => ({
+          task: c.dataset.value,
+          p: Number(c.dataset.p || 0)
+        }));
+      }
+
+      function getSingle() {
+        const c = chipsWrap.querySelector('.chip.active');
+        return c ? c.dataset.value : "";
+      }
+
+      function refreshSummary() {
+        if (mode === 'single') {
+          summaryText.textContent = getSingle() || '—';
+          syncSummaryToSelected();
+        } else {
+          const active = [...chipsWrap.querySelectorAll('.chip.active')];
+          if (!active.length) {
+            summaryText.textContent = 'Pick tasks';
+            syncSummaryToSelected();
+            return;
+          }
+          const avg = Math.round(active.reduce((s, c) => s + Number(c.dataset.p || 0), 0) / active.length);
+          summaryText.textContent = `${active.length} selected • ${avg}%`;
+          syncSummaryToSelected();
+        }
+      }
+
+      refreshSummary();
+
+      summary.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = !dd.classList.contains('open');
+        closeAllDropdowns(dd);
+        dd.classList.toggle('open', willOpen);
+      });
+
+      dd.appendChild(summary);
+      dd.appendChild(menu);
+
+      dd.getValues = getValues;
+      dd.getSingle = getSingle;
+      dd.refreshSummary = refreshSummary;
+
+      return dd;
+    }
+
+    // ============================================================
+    // 11) ROW CREATION
+    // ============================================================
+    function makeRow({ thumbUrl, timeSec }) {
+      rowCount += 1;
+
+      const fps = parseFloat(fpsEl?.value || "25") || 25;
+      const shotName = nextShotName();
+
+      const frameIn = Math.max(0, Math.round(timeSec * fps));
+      const tc = secondsToTC(timeSec, fps);
+
+      const rowId = (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+      const tr = document.createElement('tr');
+      tr.dataset.rowId = rowId;
+
+      const tdNo = document.createElement('td');
+      tdNo.innerHTML = `
+        <button class="drag-handle" type="button" title="Drag to reorder">
+          <span class="muted">No. ${rowCount}</span>
+        </button>
+      `;
+
+      const handle = tdNo.querySelector('.drag-handle');
+      handle.draggable = true;
+
+      handle.addEventListener('dragstart', (e) => {
+        draggedRow = tr;
+        tr.classList.add('dragging');
+        selectRow(tr.dataset.rowId);
+        e.dataTransfer?.setData('text/plain', tr.dataset.rowId);
+        e.dataTransfer?.setDragImage?.(tr, 20, 20);
+      });
+
+      handle.addEventListener('dragend', () => {
+        tr.classList.remove('dragging');
+        draggedRow = null;
+        updateOrdinalNumbersOnly();
+        recountAllShots();
+        showToast('Reordered + recounted');
+      });
+
+      const tdPri = document.createElement('td');
+      tdPri.appendChild(createChipDropdown({
+        label: "Priority", items: PRIORITIES, mode: "single", defaultValue: "1ST", theme: "priority"
+      }));
+
+      const tdShot = document.createElement('td');
+      tdShot.innerHTML = `
+        <input class="cell-input shot-input" value="${shotName}">
+        <div class="muted tc-label">TC ${tc}</div>
+      `;
+
+      const tdThumb = document.createElement('td');
+      tdThumb.innerHTML = `<img class="thumb" src="${thumbUrl || ''}" alt="thumb">`;
+
+      const tdRef = document.createElement('td');
+      tdRef.innerHTML = `<textarea class="cell-input note-input" rows="1" placeholder="Ref link / note"></textarea>`;
+
+      const tdDesc = document.createElement('td');
+      tdDesc.appendChild(createChipDropdown({
+        label: "VFX Progress", items: TASKS, mode: "multi", defaultValue: [], theme: null
+      }));
+
+      const tdFrameIn = document.createElement('td');
+      tdFrameIn.innerHTML = `<input class="cell-input num frame-in" value="${frameIn}">`;
+
+      const tdSecIn = document.createElement('td');
+      tdSecIn.innerHTML = `
+        <button class="sec-in-btn" type="button" title="Play from this time" data-sec="${timeSec.toFixed(3)}">
+          ${timeSec.toFixed(3)}s
+        </button>
+        <div class="muted">capture time</div>
+      `;
+
+      const tdLink = document.createElement('td');
+      tdLink.innerHTML = `<input class="cell-input" placeholder="Drive/Figma link">`;
+
+      const tdFcl = document.createElement('td');
+      tdFcl.innerHTML = `<input class="cell-input" placeholder="e.g. 35mm">`;
+
+      const tdPic = document.createElement('td');
+      tdPic.appendChild(createChipDropdown({
+        label: "PIC", items: PICS, mode: "single", defaultValue: "Anh Lộc", theme: "pic"
+      }));
+
+      const tdStatus = document.createElement('td');
+      tdStatus.appendChild(createChipDropdown({
+        label: "Overall Status", items: STATUSES, mode: "single", defaultValue: "DONE", theme: "status"
+      }));
+
+      const tdActions = document.createElement('td');
+      tdActions.innerHTML = `
+        <div class="actions">
+          <button class="icon-btn" title="Delete row" data-action="delete">🗑</button>
+        </div>
+      `;
+
+      tr.append(
+        tdNo, tdPri, tdShot, tdThumb, tdRef, tdDesc,
+        tdFrameIn, tdSecIn, tdLink, tdFcl, tdPic, tdStatus, tdActions
+      );
+      tbody.appendChild(tr);
+
+      // ensure new textarea starts correct height
+      const noteTa = tr.querySelector('textarea.note-input');
+      if (noteTa) autoGrowTextarea(noteTa);
+
+      tr.addEventListener('click', (e) => {
+        const tag = e.target?.tagName;
+        if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        selectRow(rowId);
+      });
+
+      tr.querySelectorAll('.chipdd__summary').forEach(s => {
+        s.addEventListener('click', () => selectRow(rowId), { capture: true });
+      });
+
+      tdActions.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        e.stopPropagation();
+        const act = btn.dataset.action;
+
+        if (act === 'delete') {
+          tr.remove();
+          if (selectedRowId === rowId) selectedRowId = null;
+          updateOrdinalNumbersOnly();
+          recountAllShots();
+          showToast('Row deleted');
+        }
+      });
+
+      selectRow(rowId);
+      showToast(`Added ${shotName}`);
+    }
+
+    // ============================================================
+    // 12) UPDATE SELECTED ROW (thumb + sec/frame/timecode)
+    // ============================================================
+    function replaceThumbOnSelected(dataUrl) {
+      if (!selectedRowId) return;
+      const tr = [...tbody.querySelectorAll('tr')].find(r => r.dataset.rowId === selectedRowId);
+      if (!tr) return;
+
+      const img = tr.querySelector('img.thumb');
+      if (img) img.src = dataUrl;
+
+      const fps = parseFloat(fpsEl?.value || "25") || 25;
+      const sec = video.currentTime;
+      const frameIn = Math.max(0, Math.round(sec * fps));
+
+      const frameInput = tr.querySelector('input.frame-in');
+      if (frameInput) frameInput.value = frameIn;
+
+      const secBtn = tr.querySelector('.sec-in-btn');
+      if (secBtn) {
+        secBtn.textContent = `${sec.toFixed(3)}s`;
+        secBtn.dataset.sec = sec.toFixed(3);
+      }
+
+      const tcLabel = tr.querySelector('.tc-label');
+      if (tcLabel) tcLabel.textContent = `TC ${secondsToTC(sec, fps)}`;
+
+      showToast('Updated thumbnail + Sec IN');
+    }
+
+    // ============================================================
+    // 13) DRAG REORDER
+    // ============================================================
+    tbody.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedRow) return;
+
+      const afterElement = getDragAfterElement(tbody, e.clientY);
+      if (afterElement == null) tbody.appendChild(draggedRow);
+      else tbody.insertBefore(draggedRow, afterElement);
+    });
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) return { offset, element: child };
+        return closest;
+      }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+    }
+
+    // ============================================================
+    // 14) RECOUNT + RENUMBER
+    // ============================================================
+    function recountAllShots() {
+      const rows = [...tbody.querySelectorAll('tr')];
+      const padDigits = parseInt(padEl?.value || "2", 10) || 2;
+      const newCounts = Object.create(null);
+
+      rows.forEach((tr) => {
+        const shotInput = tr.querySelector('.shot-input');
+        if (!shotInput) return;
+
+        const val = (shotInput.value || "").trim().toUpperCase();
+        const match = val.match(/^([A-Z])_/);
+        const letter = match ? match[1] : "A";
+
+        newCounts[letter] = (newCounts[letter] ?? 0) + 1;
+        shotInput.value = `${letter}_${padNumber(newCounts[letter], padDigits)}`;
+      });
+
+      for (const k in letterCounts) delete letterCounts[k];
+      for (const k in newCounts) letterCounts[k] = newCounts[k];
+    }
+
+    function updateOrdinalNumbersOnly() {
+      const rows = [...tbody.querySelectorAll('tr')];
+      rowCount = rows.length;
+
+      rows.forEach((tr, index) => {
+        const ordinalEl = tr.querySelector('td:first-child .muted');
+        if (ordinalEl) ordinalEl.textContent = `No. ${index + 1}`;
+      });
+    }
+
+    // ============================================================
+    // 15) MAIN UI EVENTS
+    // ============================================================
+    fileInput?.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+
+      setDisplayedFileName(file.name);
+
+      video.src = URL.createObjectURL(file);
+      video.poster = "";
+      video.load();
+
+      btnCaptureNew.disabled = false;
+      btnCaptureSelected.disabled = !selectedRowId;
+
+      showToast('Video loaded');
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      btnCaptureNew.disabled = false;
+      btnCaptureSelected.disabled = !selectedRowId;
+      showToast("Video ready");
+    });
+
+    btnCaptureNew?.addEventListener('click', () => {
+      const dataUrl = captureFrameDataUrl();
+      if (!dataUrl) return showToast('Video not ready yet');
+      makeRow({ thumbUrl: dataUrl, timeSec: video.currentTime });
+    });
+
+    btnCaptureSelected?.addEventListener('click', () => {
+      const dataUrl = captureFrameDataUrl();
+      if (!dataUrl) return showToast('Video not ready yet');
+      replaceThumbOnSelected(dataUrl);
+    });
+
+    btnClearAll?.addEventListener('click', () => {
+      closeAllDropdowns();
+      tbody.innerHTML = "";
+      rowCount = 0;
+      selectedRowId = null;
+      if (btnCaptureSelected) btnCaptureSelected.disabled = true;
+      for (const k in letterCounts) delete letterCounts[k];
+      showToast('Board cleared');
+    });
+
+    window.addEventListener('keydown', (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'Escape') closeAllDropdowns();
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (video?.src) video.paused ? video.play() : video.pause();
+      }
+
+      if (e.key.toLowerCase() === 'c') {
+        if (!btnCaptureNew.disabled) btnCaptureNew.click();
+      }
+
+      if (e.key.toLowerCase() === 'u') {
+        if (!btnCaptureSelected.disabled) btnCaptureSelected.click();
+      }
+    });
+
+    // ============================================================
+    // 16) SAVE / LOAD (localStorage)  ✅ FIXED NOTE + TASKS
+    // ============================================================
+    function saveBoardToLocal() {
+      const rows = [...tbody.querySelectorAll("tr")];
+
+      const boardData = {
+        fps: fpsEl.value,
+        letter: letterEl.value,
+        pad: padEl.value,
+        meta: {
+          camera: metaCamera?.value || "",
+          colorSpace: metaColorSpace?.value || "",
+          resolution: metaResolution?.value || "",
+          treatment: metaTreatment?.value || "",
+          figma: metaFigma?.value || ""
+        },
+        rows: rows.map(tr => {
+          const getChipSingle = (cell) =>
+            cell.querySelector(".chip.active")?.dataset.value || null;
+
+          const getChipMulti = (cell) =>
+            [...cell.querySelectorAll(".chip.active")].map(c => ({
+              task: c.dataset.value,
+              p: Number(c.dataset.p || 0)
+            }));
+
+          return {
+            shot: tr.querySelector(".shot-input")?.value || "",
+            thumb: tr.querySelector("img.thumb")?.src || "",
+            note: tr.querySelector("td:nth-child(5) textarea")?.value || "", // ✅ textarea
+            frameIn: tr.querySelector(".frame-in")?.value || "",
+            secIn: tr.querySelector(".sec-in-btn")?.dataset.sec || "",
+            link: tr.querySelector("td:nth-child(9) input")?.value || "",
+            fcl: tr.querySelector("td:nth-child(10) input")?.value || "",
+            priority: getChipSingle(tr.children[1]),
+            pic: getChipSingle(tr.children[10]),
+            status: getChipSingle(tr.children[11]),
+            tasks: getChipMulti(tr.children[5]) // ✅ multi tasks
+          };
+        })
+      };
+
+      localStorage.setItem("vfxBoardData", JSON.stringify(boardData));
+      showToast("Board saved locally 💾");
+    }
+
+    function loadBoardFromLocal() {
+      const raw = localStorage.getItem("vfxBoardData");
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+
+      fpsEl.value = data.fps || 25;
+      letterEl.value = data.letter || "A";
+      padEl.value = data.pad || 3;
+
+      if (data.meta) {
+        if (metaCamera) metaCamera.value = data.meta.camera || "";
+        if (metaColorSpace) metaColorSpace.value = data.meta.colorSpace || "";
+        if (metaResolution) metaResolution.value = data.meta.resolution || "";
+        if (metaTreatment) metaTreatment.value = data.meta.treatment || "";
+        if (metaFigma) metaFigma.value = data.meta.figma || "";
+      }
+
+      tbody.innerHTML = "";
+      rowCount = 0;
+
+      data.rows?.forEach(row => {
+        const secNum = parseFloat(String(row.secIn)) || 0;
+        makeRow({ thumbUrl: row.thumb, timeSec: secNum });
+
+        const tr = tbody.lastElementChild;
+
+        tr.querySelector(".shot-input").value = row.shot || "";
+        tr.querySelector(".frame-in").value = row.frameIn || "";
+
+        const noteTa = tr.querySelector("td:nth-child(5) textarea");
+        if (noteTa) {
+          noteTa.value = row.note || "";
+          autoGrowTextarea(noteTa);
+        }
+
+        const secBtn = tr.querySelector(".sec-in-btn");
+        if (secBtn) {
+          const s = parseFloat(row.secIn) || 0;
+          secBtn.dataset.sec = s.toFixed(3);
+          secBtn.textContent = `${s.toFixed(3)}s`;
+        }
+
+        tr.querySelector("td:nth-child(9) input").value = row.link || "";
+        tr.querySelector("td:nth-child(10) input").value = row.fcl || "";
+
+        restoreSingleChip(tr.children[1], row.priority);
+        restoreSingleChip(tr.children[10], row.pic);
+        restoreSingleChip(tr.children[11], row.status);
+        restoreMultiChip(tr.children[5], row.tasks);
+      });
+
+      updateOrdinalNumbersOnly();
+      recountAllShots();
+
+      showToast("Board loaded ✔");
+    }
+
+    function restoreSingleChip(cell, value) {
+      if (!cell) return;
+
+      const dd = cell.querySelector(".chipdd");
+      const theme = dd?.dataset?.theme || "";
+
+      cell.querySelectorAll(".chip").forEach(chip => {
+        const active = chip.dataset.value === value;
+        chip.classList.toggle("active", active);
+
+        // re-apply single skin
+        if (theme && CHIP_STYLE?.[theme]?.[chip.dataset.value]) {
+          const m = CHIP_STYLE[theme][chip.dataset.value];
+          if (active) {
+            chip.style.background = m.bg;
+            chip.style.borderColor = "transparent";
+            chip.style.color = m.fg;
+          } else {
+            chip.style.background = m.soft;
+            chip.style.borderColor = m.softBorder;
+            chip.style.color = m.softFg;
+          }
+        }
+      });
+
+      dd?.refreshSummary?.();
+    }
+
+    function restoreMultiChip(cell, tasks) {
+      if (!cell) return;
+
+      cell.querySelectorAll(".chip").forEach(chip => {
+        chip.classList.remove("active");
+        chip.dataset.p = "";
+        chip.style.removeProperty("--p");
+        chip.style.removeProperty("--fill");
+        const pctEl = chip.querySelector(".chip-pct");
+        if (pctEl) pctEl.textContent = "";
+      });
+
+      if (Array.isArray(tasks)) {
+        cell.querySelectorAll(".chip").forEach(chip => {
+          const match = tasks.find(t => t.task === chip.dataset.value);
+          if (!match) return;
+
+          chip.classList.add("active");
+
+          const p = Number(match.p || 0);
+          chip.dataset.p = p;
+          chip.style.setProperty("--p", p);
+
+          let fillColor;
+          if (p <= 25) fillColor = '#ef4444';
+          else if (p <= 50) fillColor = '#f97316';
+          else if (p <= 75) fillColor = '#facc15';
+          else fillColor = '#22c55e';
+
+          chip.style.setProperty("--fill", fillColor);
+
+          const pctEl = chip.querySelector(".chip-pct");
+          if (pctEl) pctEl.textContent = `${p}%`;
+        });
+      }
+
+      const dd = cell.querySelector(".chipdd");
+      dd?.refreshSummary?.();
+    }
+
+    document.getElementById("saveBoard")?.addEventListener("click", saveBoardToLocal);
+    window.addEventListener("DOMContentLoaded", loadBoardFromLocal);
+
+    // ============================================================
+    // 17) VIDEO PATH REFERENCE (separate localStorage key)
+    // ============================================================
+    videoPathDisplay?.addEventListener("input", () => {
+      localStorage.setItem("vfxVideoReferencePath", videoPathDisplay.value.trim());
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedPath = localStorage.getItem("vfxVideoReferencePath");
+      if (savedPath && videoPathDisplay) videoPathDisplay.value = savedPath;
+    });
+
+    // ============================================================
+    // 18) SPLITTER (TOP HEIGHT)
+    // ============================================================
+    (function initSplitters() {
+      const splitH = document.getElementById('splitH');
+      const layout = document.getElementById('layout');
+      if (!splitH || !layout) return;
+
+      function setTop(clientY) {
+        const rect = layout.getBoundingClientRect();
+        const minTop = 70;
+        const minBoard = 220;
+
+        const y = Math.max(minTop, Math.min(clientY - rect.top, rect.height - minBoard));
+        document.documentElement.style.setProperty('--topH', y + 'px');
+
+        const threshold = rect.height * 0.45;
+        const topSplit = document.getElementById('topSplit');
+
+        if (y < threshold) topSplit.classList.add('is-dimmed');
+        else topSplit.classList.remove('is-dimmed');
+      }
+
+      function enableDrag(el, onMove) {
+        let dragging = false;
+
+        el.addEventListener('pointerdown', e => {
+          dragging = true;
+          el.classList.add('is-dragging');
+          el.setPointerCapture(e.pointerId);
+          e.preventDefault();
+        });
+
+        el.addEventListener('pointermove', e => {
+          if (!dragging) return;
+          onMove(e.clientY);
+        });
+
+        el.addEventListener('pointerup', () => {
+          dragging = false;
+          el.classList.remove('is-dragging');
+        });
+
+        el.addEventListener('pointercancel', () => {
+          dragging = false;
+          el.classList.remove('is-dragging');
+        });
+      }
+
+      enableDrag(splitH, setTop);
+    })();
+  </script>
+</body>
+
+</html>

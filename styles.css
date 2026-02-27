@@ -1,0 +1,1520 @@
+/* ============================================================
+   0) DESIGN TOKENS / THEME VARIABLES
+   - Global color palette + sizing constants used everywhere
+   ============================================================ */
+:root{
+  --bg:#f5f6f7;
+  --grid:#d9d9d9;
+  --header:#6b6f74;
+  --header-border:#7a7f85;
+  --text:#1f2328;
+  --muted:#6b7280;
+  --card:#fff;
+  --shadow:0 6px 18px rgba(0,0,0,.06);
+
+  --blue:#1f4ed8;
+  --green:#1f7a3a;
+  --amber:#b45309;
+
+  --chip:#eef0f3;
+  --chip-border:#cfd3d8;
+  --chip-active:#eaf1ff;
+  --chip-active-border:#bcd0ff;
+
+  --radius:12px;
+
+  /* Progress color helpers (mostly used conceptually) */
+  --progress-red: #bf3838;
+  --progress-orange: #c97840;
+  --progress-yellow: #b3a053;
+  --progress-green: #52a470;
+
+  /* === Bento split sizes (driven by JS) === */
+  --topH: 56vh;
+
+  /* === Splitter sizing + constraints === */
+  --splitSize: 10px;
+  --minTop: 80vh;
+  --minBoard: 220px;
+}
+
+/* ============================================================
+   1) BASE RESET + PAGE LAYOUT
+   ============================================================ */
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+/* ============================================================
+   2) HEADER (Title + subtitle)
+   ============================================================ */
+header{
+  padding:18px 18px 10px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+}
+
+h1{
+  margin:0;
+  font-size:22px;
+  letter-spacing:.5px;
+}
+
+.sub{ color:var(--muted); font-size:12px; }
+
+/* ============================================================
+   3) BENTO LAYOUT WRAPPER (Top panels + Splitter + Board)
+   ============================================================ */
+.layout{
+  height: calc(100vh - 92px);
+  display:grid;
+  grid-template-rows: var(--topH) var(--splitSize) minmax(0, 1fr);
+  gap:0;
+  padding: 0 18px 18px;
+}
+
+/* ============================================================
+   4) TOP PANEL (Video + Controls + Settings)
+   - Grid: panel-1 | splitter | panel-2
+   ============================================================ */
+
+   .panel{
+  background:var(--card);
+  border:1px solid var(--grid);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:18px;
+
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:24px;
+
+  min-height:0;
+}
+
+.panel-col{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+  overflow:visible;
+}
+
+
+/* Make inner panels scroll if content overflows */
+#panel-1 {
+  min-width:0;
+  overflow:visible;
+   align-items:center;     /* centers children horizontally */
+  text-align:center;
+}
+
+#panel-3{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;  /* push all children to right */
+  text-align:right;      /* right-align text */
+   /*max-width:35vw;*/
+  overflow:auto;
+}
+
+#panel-2{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;  /* push all children to right */
+  text-align:right;      /* right-align text */
+   /*max-width:35vw;*/
+  overflow:auto;
+  width: 100%;
+  justify-items: end;
+}
+
+#panel-2 .field input{
+  text-align:left;        /* usually better for typing, even if aligned right */
+}
+
+/* keep inputs/video full width inside centered panel */
+#panel-1 input[type="file"],
+#panel-1 video{
+
+}
+
+/* ============================================================
+   5) SPLITTERS (the “handle” lines)
+   ============================================================ */
+.splitter{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 999px;
+  position: relative;
+  user-select: none;
+  touch-action: none; /* IMPORTANT: allows drag on touch devices */
+}
+
+.splitter--v{ cursor: col-resize; }
+.splitter--h{ cursor: row-resize; }
+
+/* grip indicator */
+.splitter::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width: 4px;
+  height: 34px;
+  border-radius:999px;
+  background: rgba(0,0,0,0.25);
+}
+.splitter--h::after{
+  width: 34px;
+  height: 4px;
+}
+
+.splitter.is-dragging{
+  background: rgba(31,78,216,0.18);
+  border-color: rgba(31,78,216,0.45);
+}
+
+/* ============================================================
+   6) RESPONSIVE: stack panel-1 / splitter / panel-2 on small screens
+   ============================================================ */
+@media (max-width: 980px){
+  .layout{
+    height:auto;
+    grid-template-rows: auto var(--splitSize) 1fr;
+  }
+
+  .panel{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto var(--splitSize) auto;
+  }
+
+  /* On stacked mode, the splitter inside panel becomes horizontal */
+  .splitter--v{ cursor: row-resize; }
+  .splitter--v::after{
+    width: 34px;
+    height: 4px;
+  }
+}
+
+/* ============================================================
+   7) FILE INPUT + VIDEO
+   ============================================================ */
+input[type="file"]{
+  width:100%;
+  padding:10px;
+  border:1px dashed var(--grid);
+  border-radius:10px;
+  background:#fafafa;
+}
+
+video{
+  width:28vw;
+  /* max-width:auto; */
+  border-radius:12px;
+  border:1px solid var(--grid);
+  background:#000;
+  display:block;
+}
+
+/* ============================================================
+   8) FORCE VIDEO CONTROLS VISIBLE (WebKit-only)
+   ============================================================ */
+video::-webkit-media-controls {
+  opacity: 1 !important;
+  display: flex !important;
+}
+video::-webkit-media-controls-enclosure { opacity: 1 !important; }
+video::-webkit-media-controls-panel { opacity: 1 !important; }
+video::-webkit-media-controls-play-button,
+video::-webkit-media-controls-mute-button,
+video::-webkit-media-controls-volume-slider{
+  transform: scale(1.05);
+}
+
+/* ============================================================
+   9) REUSABLE LAYOUT HELPERS (rows, form fields, help text)
+   ============================================================ */
+.row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.row-3{
+  width: 17vw;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  justify-content:flex-end; /* push fields to right */
+}
+
+#path-link {
+  width: 17vw;
+}
+
+
+.field{
+  display:grid;
+  gap:6px;
+  min-width:180px;
+  text-align:left;
+  width: 17vw;
+}
+
+.field label{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:700;
+}
+
+.field input{
+  padding:11px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  font-size:13px;
+  outline:none;
+  background:#fff;
+}
+
+.field select{
+  padding:10px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  font-size:13px;
+  outline:none;
+  background:#fff;
+}
+
+.help{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.4;
+  max-width:620px;
+}
+
+/* ============================================================
+   10) BUTTON SYSTEM (Primary / Danger / Neutral)
+   ============================================================ */
+.btn{
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid #d9d9d9;
+  background:#fff;
+  cursor:pointer;
+  font-weight:800;
+  font-size:13px;
+  transition: all .15s ease;
+  box-shadow:0 1px 0 rgba(0,0,0,.04);
+}
+
+.btn:hover{
+  background:#f3f4f6;
+  border-color:#cfd3d8;
+}
+
+.btn:active{
+  transform:translateY(1px);
+}
+
+.btn.primary{
+  background:#eaf1ff;
+  border-color:#bcd0ff;
+  color:var(--blue);
+}
+
+.btn.primary:hover{
+  background:#dce8ff;
+  border-color:#9fb9ff;
+}
+
+.btn.danger{
+  background:#fff5f5;
+  border-color:#ffd6d6;
+  color:#b42318;
+}
+
+.btn.danger:hover{
+  background:#ffe9e9;
+}
+
+.btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+#saveBoard{
+  background:#111827;
+  color:#fff;
+  border:none;
+  box-shadow:0 6px 16px rgba(0,0,0,.15);
+}
+
+#saveBoard:hover{
+  background:#1f2937;
+}
+
+#saveBoard:active{
+  transform:translateY(1px);
+}
+
+/* ============================================================
+   11) BOARD WRAPPER + TABLE FRAME
+   ============================================================ */
+.vfx-board{
+  background:#fff;
+  border:1px solid var(--grid);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:auto; /* both directions if needed */
+}
+
+
+
+/* =========================================
+   Dim overlay for top panel
+========================================= */
+#topSplit.panel{
+  overflow: hidden;   /* ✅ prevents any top content from bleeding into the board */
+}
+#topSplit{
+  position: relative;
+  transition: opacity .25s ease;
+}
+
+/* Dim state 
+#topSplit.is-dimmed{
+  opacity: .45;
+} */
+
+/* Optional: soft gradient fade instead of opacity */
+#topSplit.is-dimmed::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,0.80);
+  pointer-events:none;
+}
+
+
+
+/* table stays wide, wrapper scrolls */
+table.vfx-table{
+  width:max(1400px, 100%);
+  border-collapse:collapse;
+  background:#fff;
+}
+
+/* Sticky header row */
+.vfx-table thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+
+  background:var(--header);
+  color:#111;
+  font-weight:900;
+  letter-spacing:.3px;
+  font-size:12px;
+  text-transform:uppercase;
+
+  padding:12px 10px;
+  border-right:1px solid var(--header-border);
+  border-bottom:1px solid var(--grid);
+  text-align:center;
+  white-space:nowrap;
+}
+
+/* Body cells */
+.vfx-table tbody td{
+  padding:12px 10px;
+  border-right:1px solid var(--grid);
+  border-bottom:1px solid var(--grid);
+  font-size:13px;
+  text-align:center;
+  vertical-align:middle;
+  background:#fff;
+}
+
+/* Hover highlight */
+.vfx-table tbody tr:hover td{ background:#fafafa; }
+
+/* ============================================================
+   12) GLOBAL MICRO-TYPOGRAPHY HELPERS
+   ============================================================ */
+.muted{ color:var(--muted); font-size:12px; }
+.num{ font-variant-numeric:tabular-nums; }
+
+/* ============================================================
+   13) THUMBNAIL + INPUTS (cells)
+   ============================================================ */
+.thumb{
+  width:95px;
+  height:54px;
+  object-fit:cover;
+  border-radius:6px;
+  border:1px solid var(--grid);
+  background:#eee;
+  display:inline-block;
+}
+
+.cell-input{
+  width:100%;
+  min-width:92px;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  font-size:13px;
+  text-align:center;
+  outline:none;
+}
+
+/* NOTE auto-grow textarea */
+.cell-input.note-input {
+    resize: none;
+    overflow: hidden;
+    line-height: 1.35;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-width: 15vw;
+    height: auto;
+}
+
+/* Shot name emphasis */
+.shot-input{
+  font-weight:900;
+  letter-spacing:1px;
+  font-size:16px;
+}
+
+/* ============================================================
+   14) CHIP DROPDOWN (Priority / Description / PIC / Status)
+   ============================================================ */
+.chipdd{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  justify-content:center;
+}
+
+.chipdd__summary{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 10px;
+  border-radius:999px;
+  border:1px solid var(--chip-border);
+  background:var(--chip);
+  cursor:pointer;
+  user-select:none;
+  font-weight:900;
+  font-size:12px;
+  white-space:nowrap;
+}
+
+.chipdd__summary .caret{
+  width:22px;
+  height:22px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  border:1px solid var(--chip-border);
+  background:#fff;
+  font-weight:900;
+  line-height:1;
+}
+
+.chipdd__menu{
+  /* If you want it to float, uncomment these:
+  position:absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background:#fff;
+  */
+
+  min-width:260px;
+  max-width:360px;
+  border:1px solid var(--grid);
+  border-radius:14px;
+  box-shadow:0 18px 40px rgba(0,0,0,.12);
+  padding:10px;
+  display:none;
+  z-index:30;
+}
+.chipdd.open .chipdd__menu{ display:block; }
+
+.chipdd__menu .menu-title{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:4px 2px 10px;
+  border-bottom:1px solid #eef0f3;
+  margin-bottom:10px;
+}
+
+.menu-title .label{
+  font-weight:900;
+  font-size:12px;
+  color:#111;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
+
+.menu-title .hint{
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* Chip list layout */
+.chips-wrap{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-start;
+  align-items:center;
+  max-height:220px;
+  overflow:auto;
+  padding-right:2px;
+}
+
+/* ============================================================
+   CHIP SUMMARY COLOR SYNC
+   ============================================================ */
+
+.chipdd__summary{
+  transition: all .15s ease;
+}
+
+.chipdd__summary:hover{
+  transform:translateY(-1px);
+}
+
+/* Priority summary */
+.chipdd:has(.chip.priority.active) .chipdd__summary{
+
+  border-color:transparent;
+  color:#fff;
+}
+
+/* Priority pending special */
+.chipdd:has(.chip.priority.pending.active) .chipdd__summary{
+
+  color:#fff;
+}
+
+/* PIC summary */
+.chipdd:has(.chip.pic.active) .chipdd__summary{
+
+  border-color:transparent;
+  color:#fff;
+}
+
+/* Status summary */
+.chipdd:has(.chip.status.active) .chipdd__summary{
+
+  border-color:transparent;
+  color:#fff;
+}
+
+/* ============================================================
+   15) PROGRESS CHIPS (Description tasks)
+   ============================================================ */
+.chip{
+  position:relative;
+  overflow:hidden;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+
+  border:1px solid var(--chip-border);
+  background:#f4f6f8;
+  padding:7px 12px;
+  border-radius:999px;
+  font-weight:800;
+  font-size:12px;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+  transition: all .15s ease;
+}
+
+.chip:hover{
+  background:#e9edf2;
+  transform:translateY(-1px);
+}
+
+.chip:active{
+  transform:translateY(1px);
+}
+
+/* ACTIVE (progress filled) */
+.chip.active{
+  background:transparent;
+  border-color:rgba(0,0,0,.15);
+  color:#fff;
+}
+
+.chip.active::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  width: calc(var(--p, 0) * 1%);
+  background: var(--fill, #ef4444);
+  border-radius:999px;
+  z-index:1;
+  transition: width .12s linear, background .2s ease;
+}
+
+.chip.active::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.45);
+  border-radius:999px;
+  z-index:0;
+}
+
+.chip .chip-label,
+.chip .chip-pct{
+  position:relative;
+  z-index:2;
+}
+
+/* ============================================================
+   16) CHIP THEMES (Priority / PIC / Status)
+   ============================================================ */
+.chip.priority.pending{
+  background:#fff7ed;
+  border-color:#fed7aa;
+  color:#7c2d12;
+}
+.chip.priority.pending.active{
+  background:var(--amber);
+  border-color:transparent;
+  color:#fff;
+}
+.chip.priority.active{
+  background:var(--blue);
+  border-color:transparent;
+  color:#fff;
+}
+
+.chip.pic{
+  background:#ecf7ef;
+  border-color:#cfe9d7;
+  color:#155a2b;
+}
+.chip.pic.active{
+  background:var(--green);
+  border-color:transparent;
+  color:#fff;
+}
+
+.chip.status{
+  background:#e9eefc;
+  border-color:#cdd9ff;
+  color:#0b2b7a;
+}
+.chip.status.active{
+  background:var(--blue);
+  border-color:transparent;
+  color:#fff;
+}
+
+/* ============================================================
+   17) ROW STATES (selected, hover, drag)
+   ============================================================ */
+tr.selected{
+  outline:2px solid var(--blue);
+  outline-offset:-2px;
+}
+
+tbody tr{ cursor: default; }
+tbody tr:active{ cursor: default; }
+tr.dragging{ opacity:.45; }
+
+/* ============================================================
+   18) COLUMN WIDTHS (table layout tuning)
+   ============================================================ */
+.col-no{ width:90px; }
+.col-priority{ width:210px; }
+.col-shot{ width:200px; }
+.col-thumb{ width:150px; }
+.col-ref{ width:120px; }
+.col-desc{ width:520px; }
+.col-in{ width:140px; }
+.col-secin{ width:150px; }
+.col-link{ width:160px; }
+.col-fcl{ width:100px; }
+.col-pic{ width:260px; }
+.col-status{ width:260px; }
+.col-actions{ width:120px; }
+
+/* ============================================================
+   19) ACTION BUTTONS (Select/Delete icons)
+   ============================================================ */
+.actions{
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+}
+
+.icon-btn{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  background:#fff;
+  cursor:pointer;
+  font-size:16px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* ============================================================
+   20) HANDLE-ONLY DRAG UI (NO column)
+   ============================================================ */
+.drag-handle{
+  width:100%;
+  border:1px dashed var(--grid);
+  background:#fafafa;
+  border-radius:10px;
+  padding:10px 8px;
+
+  cursor:grab;
+
+  appearance:none;
+  -webkit-appearance:none;
+  outline:none;
+}
+.drag-handle:active{ cursor:grabbing; }
+.drag-handle:hover{ background:#f3f4f6; }
+
+.drag-handle .muted{
+  font-weight:900;
+  letter-spacing:.2px;
+}
+
+/* ============================================================
+   21) SEC IN BUTTON (click to play)
+   ============================================================ */
+.sec-in-btn{
+  border:1px solid var(--grid);
+  background:#fff;
+  border-radius:10px;
+  padding:8px 10px;
+  font-weight:900;
+  cursor:pointer;
+  font-variant-numeric: tabular-nums;
+  min-width:90px;
+}
+.sec-in-btn:hover{ background:#fafafa; }
+.sec-in-btn:active{ transform: translateY(1px); }
+
+/* ============================================================
+   22) TOAST (bottom-right notifications)
+   ============================================================ */
+.toast{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  background:#111317;
+  color:#fff;
+  padding:10px 12px;
+  border-radius:10px;
+  opacity:0;
+  transform:translateY(8px);
+  transition:.2s ease;
+  font-size:13px;
+  pointer-events:none;
+  z-index:100;
+}
+.toast.show{ opacity:1; transform:translateY(0); }
+
+/* ============================================================
+   23) VIDEO PATH TEXTAREA (reference-only input)
+   ============================================================ */
+#videoPathDisplay{
+  width:100%;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: left;
+
+  font-family: Consolas, monospace;
+  font-weight: 700;
+}
+
+/* ============================================================
+   24) SEC IN BUTTON (play from time)
+   ============================================================ */
+.sec-in-btn{
+  border:1px solid #d9d9d9;
+  background:#fff;
+  border-radius:10px;
+  padding:8px 12px;
+  font-weight:800;
+  cursor:pointer;
+  font-variant-numeric: tabular-nums;
+  min-width:90px;
+  transition: all .15s ease;
+}
+
+.sec-in-btn:hover{
+  background:#eaf1ff;
+  border-color:#bcd0ff;
+  color:var(--blue);
+}
+
+.sec-in-btn:active{
+  transform:translateY(1px);
+}
+
+
+/* PRIORITY */
+.chip.priority{
+  background:#eef3ff;
+  border-color:#d3ddff;
+  color:var(--blue);
+}
+.chip.priority:hover{
+  background:#e0eaff;
+}
+.chip.priority.active{
+  background:var(--blue);
+  border-color:transparent;
+  color:#fff;
+}
+
+/* PIC */
+.chip.pic{
+  background:#edf7f0;
+  border-color:#d4ecd9;
+  color:var(--green);
+}
+.chip.pic:hover{
+  background:#e1f3e7;
+}
+.chip.pic.active{
+  background:var(--green);
+  border-color:transparent;
+  color:#fff;
+}
+
+/* STATUS */
+.chip.status{
+  background:#eef2ff;
+  border-color:#d8e1ff;
+  color:#1e3a8a;
+}
+.chip.status:hover{
+  background:#e3e9ff;
+}
+.chip.status.active{
+  background:var(--blue);
+  border-color:transparent;
+  color:#fff;
+}
+
+.icon-btn{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  background:#fff;
+  cursor:pointer;
+  font-size:16px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transition: all .15s ease;
+}
+
+.icon-btn:hover{
+  background:#f3f4f6;
+}
+
+.icon-btn[data-action="delete"]:hover{
+  background:#ffeaea;
+  border-color:#ffb3b3;
+}
+
+:root{
+  --bg:#f5f6f7;
+  --grid:#d9d9d9;
+  --header:#6b6f74;
+  --header-border:#7a7f85;
+  --text:#1f2328;
+  --muted:#6b7280;
+  --card:#fff;
+  --shadow:0 6px 18px rgba(0,0,0,.06);
+  --radius:12px;
+
+  --topH:56vh;
+  --splitSize:10px;
+}
+
+*{ box-sizing:border-box; }
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+/* ================= HEADER ================= */
+header{
+  padding:18px 18px 10px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+}
+h1{ margin:0; font-size:22px; letter-spacing:.5px; }
+.sub{ color:var(--muted); font-size:12px; }
+
+/* ================= LAYOUT ================= */
+.layout{
+  height: calc(100vh - 92px);
+  display:grid;
+  grid-template-rows: var(--topH) var(--splitSize) minmax(0, 1fr);
+  padding: 0 18px 18px;
+}
+
+/* ================= TOP PANEL ================= */
+.panel{
+  background:var(--card);
+  border:1px solid var(--grid);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:18px;
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:24px;
+  min-height:0;
+}
+.panel-col{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height:0;
+}
+
+#panel-1{ align-items:center; text-align:center; }
+#panel-2{ align-items:flex-end; text-align:right; overflow:auto; }
+#panel-3{ align-items:flex-start; text-align:right; overflow:auto; }
+#panel-2 .field input{ text-align:left; }
+
+/* ================= SPLITTER ================= */
+.splitter{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 999px;
+  position: relative;
+  user-select: none;
+  touch-action: none;
+}
+.splitter--h{ cursor: row-resize; }
+.splitter::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width: 34px;
+  height: 4px;
+  border-radius:999px;
+  background: rgba(0,0,0,0.25);
+}
+.splitter.is-dragging{
+  background: rgba(31,78,216,0.18);
+  border-color: rgba(31,78,216,0.45);
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 980px){
+  .layout{ height:auto; grid-template-rows:auto var(--splitSize) 1fr; }
+  .panel{ grid-template-columns:1fr; }
+}
+
+/* ================= FILE UI + VIDEO ================= */
+.file-ui{
+  width:100%;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+}
+.file-name{
+  font-size:12px;
+  color:var(--muted);
+  max-width:260px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+video{
+  width:28vw;
+  border-radius:12px;
+  border:1px solid var(--grid);
+  background:#000;
+  display:block;
+}
+
+/* ================= FORMS ================= */
+.row{ display:flex; gap:10px; align-items:center; }
+.row-3{
+  width:17vw;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  justify-content:flex-end;
+}
+#path-link{ width:17vw; }
+
+.field{
+  display:grid;
+  gap:6px;
+  min-width:180px;
+  text-align:left;
+  width:17vw;
+}
+.field label{ font-size:12px; color:var(--muted); font-weight:700; }
+.field input, .field select{
+  padding:11px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  font-size:13px;
+  outline:none;
+  background:#fff;
+}
+.help{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.4;
+  max-width:620px;
+}
+
+/* ================= BUTTONS ================= */
+.btn{
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid #d9d9d9;
+  background:#fff;
+  cursor:pointer;
+  font-weight:800;
+  font-size:13px;
+  transition: all .15s ease;
+  box-shadow:0 1px 0 rgba(0,0,0,.04);
+}
+.btn:hover{ background:#f3f4f6; border-color:#cfd3d8; }
+.btn:active{ transform:translateY(1px); }
+.btn.primary{
+  background:#eaf1ff;
+  border-color:#bcd0ff;
+  color:#1f4ed8;
+}
+.btn.primary:hover{ background:#dce8ff; border-color:#9fb9ff; }
+.btn.danger{
+  background:#fff5f5;
+  border-color:#ffd6d6;
+  color:#b42318;
+}
+.btn.danger:hover{ background:#ffe9e9; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; }
+
+.btn-save{
+  background:#111827;
+  color:#fff;
+  border:none;
+  box-shadow:0 6px 16px rgba(0,0,0,.15);
+}
+.btn-save:hover{ background:#1f2937; }
+.btn-save:active{ transform:translateY(1px); }
+
+/* ================= BOARD / TABLE ================= */
+.vfx-board{
+  background:#fff;
+  border:1px solid var(--grid);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:auto;
+}
+table.vfx-table{
+  width:max(1400px, 100%);
+  border-collapse:collapse;
+  background:#fff;
+}
+.vfx-table thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:var(--header);
+  color:#111;
+  font-weight:900;
+  letter-spacing:.3px;
+  font-size:12px;
+  text-transform:uppercase;
+  padding:12px 10px;
+  border-right:1px solid var(--header-border);
+  border-bottom:1px solid var(--grid);
+  text-align:center;
+  white-space:nowrap;
+}
+.vfx-table tbody td{
+  padding:12px 10px;
+  border-right:1px solid var(--grid);
+  border-bottom:1px solid var(--grid);
+  font-size:13px;
+  text-align:center;
+  vertical-align:middle;
+  background:#fff;
+}
+.vfx-table tbody tr:hover td{ background:#fafafa; }
+
+.muted{ color:var(--muted); font-size:12px; }
+.num{ font-variant-numeric:tabular-nums; }
+
+/* ================= CELLS ================= */
+.thumb{
+  width:95px;
+  height:54px;
+  object-fit:cover;
+  border-radius:6px;
+  border:1px solid var(--grid);
+  background:#eee;
+  display:inline-block;
+}
+
+.cell-input{
+  width:100%;
+  min-width:92px;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  font-size:13px;
+  outline:none;
+  background:#fff;
+  text-align:center;
+  height: auto;
+}
+
+/* NOTE textarea */
+.note-input{
+  resize:none;
+  overflow:hidden;
+
+  line-height:1.35;
+  text-align:left;
+  white-space:pre-wrap;
+  word-break:break-word;
+  height:auto;
+  transition: box-shadow .15s ease, transform .15s ease, min-height .15s ease;
+}
+.note-input.is-focus,
+.note-input:focus{
+  /* expands on click */
+  box-shadow:0 10px 26px rgba(0,0,0,.14);
+  transform: translateY(-1px);
+  position:relative;
+  z-index:10;
+}
+
+.shot-input{
+  font-weight:900;
+  letter-spacing:1px;
+  font-size:16px;
+}
+
+/* ================= CHIP DROPDOWN ================= */
+.chipdd{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.chipdd__summary{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 10px;
+  border-radius:999px;
+  border:1px solid #cfd3d8;
+  background:#eef0f3;
+  cursor:pointer;
+  user-select:none;
+  font-weight:900;
+  font-size:12px;
+  white-space:nowrap;
+  transition: all .15s ease;
+}
+
+/* summary sync to chosen chip (set by JS via --sum-*) */
+.chipdd[style*="--sum-bg"] .chipdd__summary{
+  background: var(--sum-bg);
+  color: var(--sum-fg);
+  border-color: var(--sum-bd);
+}
+
+.chipdd__summary:hover{ transform:translateY(-1px); }
+
+.chipdd__summary .caret{
+  width:22px;
+  height:22px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  border:1px solid #cfd3d8;
+  background:#fff;
+  font-weight:900;
+  line-height:1;
+}
+
+.chipdd__menu{
+  min-width:260px;
+  max-width:360px;
+  border:1px solid var(--grid);
+  border-radius:14px;
+  box-shadow:0 18px 40px rgba(0,0,0,.12);
+  padding:10px;
+  display:none;
+  z-index:30;
+  background:#fff;
+}
+.chipdd.open .chipdd__menu{ display:block; }
+
+.chipdd__menu .menu-title{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:4px 2px 10px;
+  border-bottom:1px solid #eef0f3;
+  margin-bottom:10px;
+}
+.menu-title .label{
+  font-weight:900;
+  font-size:12px;
+  color:#111;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
+.menu-title .hint{ font-size:12px; color:var(--muted); }
+
+.chips-wrap{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-start;
+  align-items:center;
+  max-height:220px;
+  overflow:auto;
+  padding-right:2px;
+}
+
+/* ================= PROGRESS CHIPS (multi) ================= */
+.chip{
+  position:relative;
+  overflow:hidden;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid #cfd3d8;
+  background:#f4f6f8;
+  padding:7px 12px;
+  border-radius:999px;
+  font-weight:800;
+  font-size:12px;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+  transition: all .15s ease;
+}
+.chip:hover{ background:#e9edf2; transform:translateY(-1px); }
+.chip:active{ transform:translateY(1px); }
+
+.chip.active{
+  background:transparent;
+  border-color:rgba(0,0,0,.15);
+  color:#fff;
+}
+.chip.active::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  width: calc(var(--p, 0) * 1%);
+  background: var(--fill, #ef4444);
+  border-radius:999px;
+  z-index:1;
+  transition: width .12s linear, background .2s ease;
+}
+.chip.active::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.45);
+  border-radius:999px;
+  z-index:0;
+}
+.chip .chip-label,
+.chip .chip-pct{
+  position:relative;
+  z-index:2;
+}
+
+/* ================= ROW STATES ================= */
+tr.selected{
+  outline:2px solid #1f4ed8;
+  outline-offset:-2px;
+}
+tr.dragging{ opacity:.45; }
+
+/* ================= COLUMNS ================= */
+.col-no{ width:90px; }
+.col-priority{ width:210px; }
+.col-shot{ width:200px; }
+.col-thumb{ width:150px; }
+.col-ref{ width:220px; }  /* a bit wider for textarea */
+.col-desc{ width:520px; }
+.col-in{ width:140px; }
+.col-secin{ width:150px; }
+.col-link{ width:160px; }
+.col-fcl{ width:100px; }
+.col-pic{ width:260px; }
+.col-status{ width:260px; }
+.col-actions{ width:120px; }
+
+/* ================= ACTION BUTTONS ================= */
+.actions{
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  justify-content:center;
+}
+.icon-btn{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  border:1px solid var(--grid);
+  background:#fff;
+  cursor:pointer;
+  font-size:16px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transition: all .15s ease;
+}
+.icon-btn:hover{ background:#f3f4f6; }
+.icon-btn[data-action="delete"]:hover{
+  background:#ffeaea;
+  border-color:#ffb3b3;
+}
+
+/* ================= DRAG HANDLE ================= */
+.drag-handle{
+  width:100%;
+  border:1px dashed var(--grid);
+  background:#fafafa;
+  border-radius:10px;
+  padding:10px 8px;
+  cursor:grab;
+  appearance:none;
+  -webkit-appearance:none;
+  outline:none;
+}
+.drag-handle:active{ cursor:grabbing; }
+.drag-handle:hover{ background:#f3f4f6; }
+.drag-handle .muted{ font-weight:900; letter-spacing:.2px; }
+
+/* ================= SEC IN BUTTON ================= */
+.sec-in-btn{
+  border:1px solid #d9d9d9;
+  background:#fff;
+  border-radius:10px;
+  padding:8px 12px;
+  font-weight:800;
+  cursor:pointer;
+  font-variant-numeric: tabular-nums;
+  min-width:90px;
+  transition: all .15s ease;
+}
+.sec-in-btn:hover{
+  background:#eaf1ff;
+  border-color:#bcd0ff;
+  color:#1f4ed8;
+}
+.sec-in-btn:active{ transform:translateY(1px); }
+
+/* ================= TOAST ================= */
+.toast{
+  position:fixed;
+  right:16px;
+  bottom:16px;
+  background:#111317;
+  color:#fff;
+  padding:10px 12px;
+  border-radius:10px;
+  opacity:0;
+  transform:translateY(8px);
+  transition:.2s ease;
+  font-size:13px;
+  pointer-events:none;
+  z-index:100;
+}
+.toast.show{ opacity:1; transform:translateY(0); }
+
+/* ================= VIDEO PATH TEXTAREA ================= */
+#videoPathDisplay{
+  width:100%;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.3;
+  text-align: left;
+  font-family: Consolas, monospace;
+  font-weight: 700;
+}
+
+/* NOTE column textarea: auto-grow friendly */
+textarea.note-input{
+  height:auto;              /* allow JS to control height */
+        /* base height */
+  overflow:hidden;          /* hide scrollbar so it “grows” */
+  resize:none;              /* optional: keep clean UI */
+  line-height:1.35;
+  padding:10px 12px;
+  white-space:pre-wrap;
+  word-break:break-word;
+  display:block;
+  width:100%;
+}
+
+/* IMPORTANT: let table rows expand with content */
+.vfx-table td{
+  height:auto !important;
+  vertical-align:top;
+}
+
+.vfx-table tr{
+  height:auto !important;
+}
