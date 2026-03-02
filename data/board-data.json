@@ -24,6 +24,10 @@
       "status": "Not Started",
       "tasks": [
         {
+          "task": "Color Grade",
+          "p": 91
+        },
+        {
           "task": "3D Assets",
           "p": 85
         },
