@@ -25,7 +25,11 @@
       "tasks": [
         {
           "task": "Color Grade",
-          "p": 17
+          "p": 91
+        },
+        {
+          "task": "Tracking",
+          "p": 83
         }
       ]
     },
