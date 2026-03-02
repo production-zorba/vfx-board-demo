@@ -26,7 +26,20 @@
         }
       ],
       "status": "Not Started",
-      "tasks": []
+      "tasks": [
+        {
+          "task": "Color Grade",
+          "p": 84
+        },
+        {
+          "task": "Roto/Key",
+          "p": 83
+        },
+        {
+          "task": "3D Environment",
+          "p": 92
+        }
+      ]
     },
     {
       "shot": "A_02",
