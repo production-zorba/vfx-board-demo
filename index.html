@@ -6,9 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VFX Board - Demo</title>
   <link rel="stylesheet" href="styles.css" />
+
 </head>
 
 <body>
+  <!-- ✅ Loading overlay (dim everything + single clear line) -->
+  <div id="loadingOverlay" class="loading-overlay" aria-live="polite" aria-busy="true">
+    <div class="loading-box" id="loadingText">Loading Data…</div>
+  </div>
+
   <header>
     <div>
       <h1>VFX Breakdown - BB Tran</h1>
@@ -57,7 +63,7 @@
 
         <input id="file" type="file" accept="video/mp4,video/*" hidden />
         <div class="file-ui">
-         <!-- <button type="button" class="btn" id="pickFile">Choose another video</button> -->
+          <!-- <button type="button" class="btn" id="pickFile">Choose another video</button> -->
           <span class="file-name" id="fileName"></span>
         </div>
 
@@ -178,6 +184,40 @@
     const metaResolution = document.getElementById('metaResolution');
     const metaTreatment = document.getElementById('metaTreatment');
     const metaFigma = document.getElementById('metaFigma');
+
+    // ✅ Loading overlay refs
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+
+    // ============================================================
+    // ✅ LOADING OVERLAY HELPERS (minimal, clear)
+    // ============================================================
+    let loadingDepth = 0;
+
+    function showLoading(message = "Loading Data…") {
+      loadingDepth += 1;
+      if (loadingText) loadingText.textContent = message;
+      if (loadingOverlay) loadingOverlay.classList.add('is-on');
+      document.documentElement.style.cursor = 'wait';
+      document.body.style.pointerEvents = 'none';
+    }
+
+    function hideLoading() {
+      loadingDepth = Math.max(0, loadingDepth - 1);
+      if (loadingDepth > 0) return;
+      if (loadingOverlay) loadingOverlay.classList.remove('is-on');
+      document.documentElement.style.cursor = '';
+      document.body.style.pointerEvents = '';
+    }
+
+    async function withLoading(message, fn) {
+      showLoading(message);
+      try {
+        return await fn();
+      } finally {
+        hideLoading();
+      }
+    }
 
     // ============================================================
     // CLOUD SAVE (shared across computers)
@@ -1144,44 +1184,54 @@
     }
 
     // ============================================================
-    // ✅ CLOUD SAVE/LOAD (added without changing your existing lines)
+    // ✅ CLOUD SAVE/LOAD
     // ============================================================
     async function loadBoardFromCloud() {
-      const res = await fetch(`${WORKER_BASE}/load`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`Cloud load failed (${res.status})`);
-      const data = await res.json();
-      applyBoardDataObject(data, "Loaded from cloud ☁️");
-      localStorage.setItem("vfxBoardData", JSON.stringify(data));
-      window.__cloudLoaded = true;
+      return withLoading("Loading Data…", async () => {
+        const res = await fetch(`${WORKER_BASE}/load`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`Cloud load failed (${res.status})`);
+        const data = await res.json();
+        applyBoardDataObject(data, "Loaded from cloud ☁️");
+        localStorage.setItem("vfxBoardData", JSON.stringify(data));
+        window.__cloudLoaded = true;
+      });
     }
 
     async function saveBoardToCloud() {
-      const data = getBoardDataObject();
+      return withLoading("Saving Data…", async () => {
+        const data = getBoardDataObject();
 
-      const res = await fetch(`${WORKER_BASE}/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
+        const res = await fetch(`${WORKER_BASE}/save`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (!res.ok) throw new Error(`Cloud save failed (${res.status})`);
+
+        localStorage.setItem("vfxBoardData", JSON.stringify(data));
+        showToast("Saved to cloud ☁️💾");
       });
-
-      if (!res.ok) throw new Error(`Cloud save failed (${res.status})`);
-
-      localStorage.setItem("vfxBoardData", JSON.stringify(data));
-      showToast("Saved to cloud ☁️💾");
     }
 
     // Wrap your existing functions (so your original event listeners can stay untouched)
     const __loadLocalOriginal = loadBoardFromLocal;
     loadBoardFromLocal = function () {
       if (window.__cloudLoaded) return;
-      return __loadLocalOriginal();
+      return withLoading("Loading Data…", async () => __loadLocalOriginal());
     };
+
+    // Show loading immediately at first paint, then cloud/local will dismiss it
+    showLoading("Loading Data…");
 
     // Try cloud first on load (then your existing local loader can still run as fallback)
     window.addEventListener("DOMContentLoaded", () => {
       loadBoardFromCloud().catch(err => {
         console.warn("Cloud load failed, fallback to local", err);
         window.__cloudLoaded = false;
+      }).finally(() => {
+        // if cloud load failed, local loader will handle; but ensure overlay doesn't get stuck
+        hideLoading();
       });
     });
 
@@ -1267,4 +1317,3 @@
 </body>
 
 </html>
-
