@@ -55,7 +55,7 @@ html[data-theme="dark"]{
   --grid: rgba(255,255,255,0.12);
 
   --header: rgba(255,255,255,0.08);
-  --header-border: rgba(255,255,255,0.14);
+  --header-border:  rgb(6 9 12);
 
   --text:#e6edf3;
   --muted:#9aa4b2;
@@ -888,3 +888,4 @@ tr.dragging{ opacity:.45; }
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+
