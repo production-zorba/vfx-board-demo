@@ -110,12 +110,8 @@
             This is for reference only. It will be saved locally and restored on refresh.
           </div>
 
-          <!-- ✅ REPLACED: Save only -> Save + Export + Import -->
           <div class="row" style="gap:8px; display:flex; flex-wrap:wrap;">
             <button id="saveBoard" class="btn btn-save">💾 Save Board</button>
-            <button id="exportBoard" class="btn">⬇ Export JSON</button>
-            <button id="importBoardBtn" class="btn">⬆ Import JSON</button>
-            <input id="importBoardFile" type="file" accept="application/json" hidden />
           </div>
         </div>
       </div>
@@ -182,11 +178,6 @@
     const metaResolution = document.getElementById('metaResolution');
     const metaTreatment = document.getElementById('metaTreatment');
     const metaFigma = document.getElementById('metaFigma');
-
-    // Export/Import elements
-    const exportBoardBtn = document.getElementById('exportBoard');
-    const importBoardBtn = document.getElementById('importBoardBtn');
-    const importBoardFile = document.getElementById('importBoardFile');
 
     // ============================================================
     // CLOUD SAVE (shared across computers)
@@ -971,12 +962,21 @@
     });
 
     // ============================================================
-    // 16) SAVE / LOAD (localStorage) + EXPORT/IMPORT (JSON)
+    // 16) SAVE / LOAD (localStorage) + SHARED BOARD DATA HELPERS
     // ============================================================
-    function saveBoardToLocal() {
+    function getBoardDataObject() {
       const rows = [...tbody.querySelectorAll("tr")];
 
-      const boardData = {
+      const getChipSingle = (cell) =>
+        cell.querySelector(".chip.active")?.dataset.value || null;
+
+      const getChipMulti = (cell) =>
+        [...cell.querySelectorAll(".chip.active")].map(c => ({
+          task: c.dataset.value,
+          p: Number(c.dataset.p || 0)
+        }));
+
+      return {
         fps: fpsEl.value,
         letter: letterEl.value,
         pad: padEl.value,
@@ -988,43 +988,23 @@
           figma: metaFigma?.value || ""
         },
         videoRefPath: videoPathDisplay?.value || "",
-        rows: rows.map(tr => {
-          const getChipSingle = (cell) =>
-            cell.querySelector(".chip.active")?.dataset.value || null;
-
-          const getChipMulti = (cell) =>
-            [...cell.querySelectorAll(".chip.active")].map(c => ({
-              task: c.dataset.value,
-              p: Number(c.dataset.p || 0)
-            }));
-
-          return {
-            shot: tr.querySelector(".shot-input")?.value || "",
-            thumb: tr.querySelector("img.thumb")?.src || "",
-            note: tr.querySelector("td:nth-child(5) textarea")?.value || "",
-            frameIn: tr.querySelector(".frame-in")?.value || "",
-            secIn: tr.querySelector(".sec-in-btn")?.dataset.sec || "",
-            link: tr.querySelector("td:nth-child(9) input")?.value || "",
-            fcl: tr.querySelector("td:nth-child(10) input")?.value || "",
-            priority: getChipSingle(tr.children[1]),
-            pic: getChipSingle(tr.children[10]),
-            status: getChipSingle(tr.children[11]),
-            tasks: getChipMulti(tr.children[5])
-          };
-        })
+        rows: rows.map(tr => ({
+          shot: tr.querySelector(".shot-input")?.value || "",
+          thumb: tr.querySelector("img.thumb")?.src || "",
+          note: tr.querySelector("td:nth-child(5) textarea")?.value || "",
+          frameIn: tr.querySelector(".frame-in")?.value || "",
+          secIn: tr.querySelector(".sec-in-btn")?.dataset.sec || "",
+          link: tr.querySelector("td:nth-child(9) input")?.value || "",
+          fcl: tr.querySelector("td:nth-child(10) input")?.value || "",
+          priority: getChipSingle(tr.children[1]),
+          pic: getChipSingle(tr.children[10]),
+          status: getChipSingle(tr.children[11]),
+          tasks: getChipMulti(tr.children[5])
+        }))
       };
-
-      localStorage.setItem("vfxBoardData", JSON.stringify(boardData));
-      if (videoPathDisplay) localStorage.setItem("vfxVideoReferencePath", (videoPathDisplay.value || "").trim());
-      showToast("Board saved locally 💾");
     }
 
-    function loadBoardFromLocal() {
-      const raw = localStorage.getItem("vfxBoardData");
-      if (!raw) return;
-
-      const data = JSON.parse(raw);
-
+    function applyBoardDataObject(data, toastMessage = "Imported ✔") {
       fpsEl.value = data.fps || 25;
       letterEl.value = data.letter || "A";
       padEl.value = data.pad || 3;
@@ -1037,9 +1017,9 @@
         if (metaFigma) metaFigma.value = data.meta.figma || "";
       }
 
-      if (videoPathDisplay && typeof data.videoRefPath === "string") {
-        videoPathDisplay.value = data.videoRefPath;
-        localStorage.setItem("vfxVideoReferencePath", data.videoRefPath.trim());
+      if (videoPathDisplay) {
+        videoPathDisplay.value = data.videoRefPath || "";
+        localStorage.setItem("vfxVideoReferencePath", (data.videoRefPath || "").trim());
       }
 
       tbody.innerHTML = "";
@@ -1078,8 +1058,22 @@
 
       updateOrdinalNumbersOnly();
       recountAllShots();
+      showToast(toastMessage);
+    }
 
-      showToast("Board loaded ✔");
+    function saveBoardToLocal() {
+      const boardData = getBoardDataObject();
+      localStorage.setItem("vfxBoardData", JSON.stringify(boardData));
+      if (videoPathDisplay) localStorage.setItem("vfxVideoReferencePath", (videoPathDisplay.value || "").trim());
+      showToast("Board saved locally 💾");
+    }
+
+    function loadBoardFromLocal() {
+      const raw = localStorage.getItem("vfxBoardData");
+      if (!raw) return;
+
+      const data = JSON.parse(raw);
+      applyBoardDataObject(data, "Board loaded ✔");
     }
 
     function restoreSingleChip(cell, value) {
@@ -1149,148 +1143,6 @@
       dd?.refreshSummary?.();
     }
 
-    // ---------- EXPORT / IMPORT (JSON) ----------
-    function getBoardDataObject() {
-      const rows = [...tbody.querySelectorAll("tr")];
-
-      const getChipSingle = (cell) =>
-        cell.querySelector(".chip.active")?.dataset.value || null;
-
-      const getChipMulti = (cell) =>
-        [...cell.querySelectorAll(".chip.active")].map(c => ({
-          task: c.dataset.value,
-          p: Number(c.dataset.p || 0)
-        }));
-
-      return {
-        fps: fpsEl.value,
-        letter: letterEl.value,
-        pad: padEl.value,
-        meta: {
-          camera: metaCamera?.value || "",
-          colorSpace: metaColorSpace?.value || "",
-          resolution: metaResolution?.value || "",
-          treatment: metaTreatment?.value || "",
-          figma: metaFigma?.value || ""
-        },
-        videoRefPath: videoPathDisplay?.value || "",
-        rows: rows.map(tr => ({
-          shot: tr.querySelector(".shot-input")?.value || "",
-          thumb: tr.querySelector("img.thumb")?.src || "",
-          note: tr.querySelector("td:nth-child(5) textarea")?.value || "",
-          frameIn: tr.querySelector(".frame-in")?.value || "",
-          secIn: tr.querySelector(".sec-in-btn")?.dataset.sec || "",
-          link: tr.querySelector("td:nth-child(9) input")?.value || "",
-          fcl: tr.querySelector("td:nth-child(10) input")?.value || "",
-          priority: getChipSingle(tr.children[1]),
-          pic: getChipSingle(tr.children[10]),
-          status: getChipSingle(tr.children[11]),
-          tasks: getChipMulti(tr.children[5])
-        }))
-      };
-    }
-
-    function downloadJSON(filename, obj) {
-      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    function applyBoardDataObject(data) {
-      fpsEl.value = data.fps || 25;
-      letterEl.value = data.letter || "A";
-      padEl.value = data.pad || 3;
-
-      if (data.meta) {
-        if (metaCamera) metaCamera.value = data.meta.camera || "";
-        if (metaColorSpace) metaColorSpace.value = data.meta.colorSpace || "";
-        if (metaResolution) metaResolution.value = data.meta.resolution || "";
-        if (metaTreatment) metaTreatment.value = data.meta.treatment || "";
-        if (metaFigma) metaFigma.value = data.meta.figma || "";
-      }
-
-      if (videoPathDisplay) {
-        videoPathDisplay.value = data.videoRefPath || "";
-        localStorage.setItem("vfxVideoReferencePath", (data.videoRefPath || "").trim());
-      }
-
-      tbody.innerHTML = "";
-      rowCount = 0;
-
-      data.rows?.forEach(row => {
-        const secNum = parseFloat(String(row.secIn)) || 0;
-        makeRow({ thumbUrl: row.thumb, timeSec: secNum });
-
-        const tr = tbody.lastElementChild;
-
-        tr.querySelector(".shot-input").value = row.shot || "";
-        tr.querySelector(".frame-in").value = row.frameIn || "";
-
-        const noteTa = tr.querySelector("td:nth-child(5) textarea");
-        if (noteTa) {
-          noteTa.value = row.note || "";
-          autoGrowTextarea(noteTa);
-        }
-
-        const secBtn = tr.querySelector(".sec-in-btn");
-        if (secBtn) {
-          const s = parseFloat(row.secIn) || 0;
-          secBtn.dataset.sec = s.toFixed(3);
-          secBtn.textContent = `${s.toFixed(3)}s`;
-        }
-
-        tr.querySelector("td:nth-child(9) input").value = row.link || "";
-        tr.querySelector("td:nth-child(10) input").value = row.fcl || "";
-
-        restoreSingleChip(tr.children[1], row.priority);
-        restoreSingleChip(tr.children[10], row.pic);
-        restoreSingleChip(tr.children[11], row.status);
-        restoreMultiChip(tr.children[5], row.tasks);
-      });
-
-      updateOrdinalNumbersOnly();
-      recountAllShots();
-      showToast("Imported ✔");
-    }
-
-    exportBoardBtn?.addEventListener("click", () => {
-      const data = getBoardDataObject();
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-      downloadJSON(`vfx-board-${stamp}.json`, data);
-    });
-
-    importBoardBtn?.addEventListener("click", () => {
-      importBoardFile?.click();
-    });
-
-    importBoardFile?.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-
-        applyBoardDataObject(data);
-
-        // save to localStorage so refresh keeps it (and other functions still work)
-        localStorage.setItem("vfxBoardData", JSON.stringify(data));
-
-        showToast("Import + saved 💾");
-      } catch (err) {
-        console.error(err);
-        showToast("Invalid JSON ❌");
-      } finally {
-        e.target.value = "";
-      }
-    });
-
     // ============================================================
     // ✅ CLOUD SAVE/LOAD (added without changing your existing lines)
     // ============================================================
@@ -1298,10 +1150,9 @@
       const res = await fetch(`${WORKER_BASE}/load`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Cloud load failed (${res.status})`);
       const data = await res.json();
-      applyBoardDataObject(data);
+      applyBoardDataObject(data, "Loaded from cloud ☁️");
       localStorage.setItem("vfxBoardData", JSON.stringify(data));
       window.__cloudLoaded = true;
-      showToast("Loaded from cloud ☁️");
     }
 
     async function saveBoardToCloud() {
@@ -1344,13 +1195,9 @@
       });
     }, true);
 
-    // (Optional) if you still want local save too, uncomment this:
-    // document.getElementById("saveBoard")?.addEventListener("click", () => saveBoardToLocal(), true);
-
     // ============================================================
     // (Your original lines below remain the same)
     // ============================================================
-    document.getElementById("saveBoard")?.addEventListener("click", saveBoardToLocal);
     window.addEventListener("DOMContentLoaded", loadBoardFromLocal);
 
     // ============================================================
@@ -1420,4 +1267,3 @@
 </body>
 
 </html>
-
