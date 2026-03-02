@@ -54,8 +54,8 @@ html[data-theme="dark"]{
   --bg:#0b0f14;
   --grid: rgba(255,255,255,0.12);
 
-  --header: rgba(255,255,255,0.08);
-  --header-border:  rgb(6 9 12);
+  --header: rgb(6 9 12);
+  --header-border: rgba(255,255,255,0.14);
 
   --text:#e6edf3;
   --muted:#9aa4b2;
