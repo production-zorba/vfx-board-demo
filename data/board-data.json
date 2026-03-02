@@ -20,7 +20,7 @@
       "link": "",
       "fcl": "",
       "priority": "1ST",
-      "pic": "Anh Hiếu",
+      "pic": "Anh Khoa",
       "status": "Not Started",
       "tasks": [
         {
@@ -30,6 +30,10 @@
         {
           "task": "Tracking",
           "p": 83
+        },
+        {
+          "task": "Roto/Key",
+          "p": 92
         }
       ]
     },
