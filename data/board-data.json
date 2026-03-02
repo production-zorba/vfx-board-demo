@@ -19,7 +19,7 @@
       "secIn": "62.915",
       "link": "",
       "fcl": "",
-      "priority": "2ND",
+      "priority": "1ST",
       "pic": "Anh Khoa",
       "status": "Not Started",
       "tasks": [
@@ -45,7 +45,7 @@
       "secIn": "81.244",
       "link": "",
       "fcl": "",
-      "priority": "2ND",
+      "priority": "1ST",
       "pic": "Anh Thắng",
       "status": "WIP",
       "tasks": [
@@ -101,7 +101,7 @@
       "secIn": "10.796",
       "link": "",
       "fcl": "",
-      "priority": "1ST",
+      "priority": "2ND",
       "pic": "Pending",
       "status": "Not Started",
       "tasks": []
@@ -114,7 +114,7 @@
       "secIn": "12.686",
       "link": "",
       "fcl": "",
-      "priority": "1ST",
+      "priority": "2ND",
       "pic": "Pending",
       "status": "Not Started",
       "tasks": []
