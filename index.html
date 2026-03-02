@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VFX Board - HOST</title>
+  <title>VFX Board - Demo</title>
   <link rel="stylesheet" href="styles.css" />
 
 </head>
@@ -16,11 +16,17 @@
   </div>
 
   <header>
-    <div>
-      <h1>VFX Breakdown - BB Tran</h1>
-      <div class="sub"></div>
+    <div>  
+        <h1> VFX Breakdown - BB Tran</h1>  
+    </div>
+    
+    <div class="theme-controls" role="group" aria-label="Theme">
+      <button type="button" class="btn" id="themeLight" title="Light mode">Light</button>
+      <button type="button" class="btn is-active" id="themeDark" title="Dark mode">Dark</button>
     </div>
   </header>
+
+
 
   <main class="layout" id="layout">
     <section class="panel" id="topSplit">
@@ -153,339 +159,1277 @@
   <canvas id="canvas" style="display:none;"></canvas>
   <div id="toast" class="toast"></div>
 
-  <script>
-    // ============================================================
-    // 1) DOM REFERENCES
-    // ============================================================
-    const fileInput = document.getElementById('file');
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
+ <script>
+  // ============================================================
+  // 1) DOM REFERENCES
+  // ============================================================
+  const fileInput = document.getElementById('file');
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
 
-    const btnCaptureNew = document.getElementById('captureNew');
-    const btnCaptureSelected = document.getElementById('captureSelected');
-    const btnClearAll = document.getElementById('clearAll');
+  const btnCaptureNew = document.getElementById('captureNew');
+  const btnCaptureSelected = document.getElementById('captureSelected');
+  const btnClearAll = document.getElementById('clearAll');
 
-    const fpsEl = document.getElementById('fps');
-    const letterEl = document.getElementById('letter');
-    const padEl = document.getElementById('pad');
+  const fpsEl = document.getElementById('fps');
+  const letterEl = document.getElementById('letter');
+  const padEl = document.getElementById('pad');
 
-    const tbody = document.getElementById('tbody');
-    const toast = document.getElementById('toast');
+  const tbody = document.getElementById('tbody');
+  const toast = document.getElementById('toast');
 
-    const videoPathDisplay = document.getElementById("videoPathDisplay");
+  const videoPathDisplay = document.getElementById("videoPathDisplay");
 
-    // Custom file UI
-    const pickFileBtn = document.getElementById('pickFile');
-    const fileNameEl = document.getElementById('fileName');
+  // Custom file UI
+  const pickFileBtn = document.getElementById('pickFile');
+  const fileNameEl = document.getElementById('fileName');
 
-    // Panel-3 fields
-    const metaCamera = document.getElementById('metaCamera');
-    const metaColorSpace = document.getElementById('metaColorSpace');
-    const metaResolution = document.getElementById('metaResolution');
-    const metaTreatment = document.getElementById('metaTreatment');
-    const metaFigma = document.getElementById('metaFigma');
+  // Panel-3 fields
+  const metaCamera = document.getElementById('metaCamera');
+  const metaColorSpace = document.getElementById('metaColorSpace');
+  const metaResolution = document.getElementById('metaResolution');
+  const metaTreatment = document.getElementById('metaTreatment');
+  const metaFigma = document.getElementById('metaFigma');
 
-    // ✅ Loading overlay refs
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const loadingText = document.getElementById('loadingText');
+  // ✅ Loading overlay refs
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingText = document.getElementById('loadingText');
 
-    // ============================================================
-    // ✅ LOADING OVERLAY HELPERS (minimal, clear)
-    // ============================================================
-    let loadingDepth = 0;
+  // ============================================================
+  // ✅ THEME TOGGLE (Auto / Light / Dark) — DARK DEFAULT
+  // ============================================================
+  (function initThemeButtons() {
+    const KEY = "vfxTheme"; // "auto" | "light" | "dark"
+    const html = document.documentElement;
 
-    function showLoading(message = "Loading Data…") {
-      loadingDepth += 1;
-      if (loadingText) loadingText.textContent = message;
-      if (loadingOverlay) loadingOverlay.classList.add('is-on');
-      document.documentElement.style.cursor = 'wait';
-      document.body.style.pointerEvents = 'none';
+    const btnAuto = document.getElementById("themeAuto");
+    const btnLight = document.getElementById("themeLight");
+    const btnDark = document.getElementById("themeDark");
+
+    const mql = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
+
+    function setActiveButton(theme) {
+      [btnAuto, btnLight, btnDark].forEach(b => b && b.classList.remove("is-active"));
+      if (theme === "auto") btnAuto?.classList.add("is-active");
+      if (theme === "light") btnLight?.classList.add("is-active");
+      if (theme === "dark") btnDark?.classList.add("is-active");
     }
 
-    function hideLoading() {
-      loadingDepth = Math.max(0, loadingDepth - 1);
-      if (loadingDepth > 0) return;
-      if (loadingOverlay) loadingOverlay.classList.remove('is-on');
-      document.documentElement.style.cursor = '';
-      document.body.style.pointerEvents = '';
-    }
-
-    async function withLoading(message, fn) {
-      showLoading(message);
-      try {
-        return await fn();
-      } finally {
-        hideLoading();
+    function applyTheme(theme) {
+      if (theme === "auto") {
+        html.removeAttribute("data-theme");
+      } else {
+        html.setAttribute("data-theme", theme);
       }
+      localStorage.setItem(KEY, theme);
+      setActiveButton(theme);
     }
 
-    // ============================================================
-    // CLOUD SAVE (shared across computers)
-    // ============================================================
-    const WORKER_BASE = "https://vfx-board-save.production-745.workers.dev";
+    // ✅ Default = dark (first visit)
+    const saved = localStorage.getItem(KEY) || "dark";
+    applyTheme(saved);
 
-    // ============================================================
-    // 2) CONFIG DATA
-    // ============================================================
-    const PRIORITIES = ["1ST", "2ND", "PENDING"];
-    const TASKS = [
-      "Color Grade", "Retouch", "Tracking", "Roto/Key",
-      "3D Assets", "3D Environment", "Anim", "Lookdev", "Render", "Matchmove",
-      "COMP"
-    ];
-    const PICS = ["Anh Lộc", "Anh Hiếu", "Anh Thắng", "Anh Khoa", "Anh Phát", "Anh Philip", "Ngân", "Tiến", "Pending"];
-    const STATUSES = ["Not Started", "WIP", "DONE", "APPROVED"];
+    btnAuto?.addEventListener("click", () => applyTheme("auto"));
+    btnLight?.addEventListener("click", () => applyTheme("light"));
+    btnDark?.addEventListener("click", () => applyTheme("dark"));
 
-    // ============================================================
-    // 3) RUNTIME STATE
-    // ============================================================
-    let rowCount = 0;
-    let selectedRowId = null;
-    const letterCounts = Object.create(null);
-    let draggedRow = null;
-
-    // ============================================================
-    // 4) INIT: Populate letter dropdown A-Z
-    // ============================================================
-    (function initLetterDropdown() {
-      if (!letterEl) return;
-      if (letterEl.options.length > 0) return;
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((l) => {
-        const opt = document.createElement("option");
-        opt.value = l;
-        opt.textContent = l;
-        if (l === "A") opt.selected = true;
-        letterEl.appendChild(opt);
-      });
-    })();
-
-    // ============================================================
-    // 4.5) FILE NAME DISPLAY
-    // ============================================================
-    function getNameFromVideoSrc() {
-      const src = video?.getAttribute('src') || video?.src || "";
-      if (!src) return "";
-      const clean = src.split('?')[0].split('#')[0];
-      return clean.split('/').pop() || "";
-    }
-
-    function setDisplayedFileName(name) {
-      if (!fileNameEl) return;
-      fileNameEl.textContent = name || "No video selected";
-      fileNameEl.title = name || "";
-    }
-
-    setDisplayedFileName(getNameFromVideoSrc());
-    pickFileBtn?.addEventListener('click', () => fileInput?.click());
-
-    // ============================================================
-    // 5) UTILITIES
-    // ============================================================
-    function showToast(msg) {
-      if (!toast) return;
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 1400);
-    }
-
-    function padNumber(n, digits) {
-      return String(n).padStart(digits, '0');
-    }
-
-    function secondsToTC(sec, fps) {
-      const totalFrames = Math.max(0, Math.round(sec * fps));
-      const fpsInt = Math.max(1, Math.round(fps));
-      const ff = totalFrames % fpsInt;
-      const totalSeconds = Math.floor(totalFrames / fpsInt);
-      const ss = totalSeconds % 60;
-      const mm = Math.floor(totalSeconds / 60) % 60;
-      const hh = Math.floor(totalSeconds / 3600);
-      const two = (x) => String(x).padStart(2, '0');
-      return `${two(hh)}:${two(mm)}:${two(ss)}:${two(ff)}`;
-    }
-
-    function captureFrameDataUrl() {
-      if (!video || !video.videoWidth || !video.videoHeight) return null;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/webp', 0.6);
-    }
-
-    function selectRow(rowId) {
-      selectedRowId = rowId;
-      [...tbody.querySelectorAll('tr')].forEach(tr => {
-        tr.classList.toggle('selected', tr.dataset.rowId === selectedRowId);
-      });
-      if (btnCaptureSelected) btnCaptureSelected.disabled = !selectedRowId;
-    }
-
-    function closeAllDropdowns(exceptEl = null) {
-      document.querySelectorAll('.chipdd.open').forEach(dd => {
-        if (exceptEl && dd === exceptEl) return;
-        dd.classList.remove('open');
+    if (mql && mql.addEventListener) {
+      mql.addEventListener("change", () => {
+        const current = localStorage.getItem(KEY) || "dark";
+        if (current === "auto") applyTheme("auto");
       });
     }
-    document.addEventListener('click', () => closeAllDropdowns());
+  })();
 
-    // ============================================================
-    // 6) NOTE TEXTAREA: AUTO-GROW + EXPAND ON FOCUS
-    // ============================================================
-    function autoGrowTextarea(el) {
-      el.style.height = "auto";
-      el.style.height = (el.scrollHeight + 2) + "px"; // +2px buffer
+  // ============================================================
+  // ✅ LOADING OVERLAY HELPERS (minimal, clear)
+  // ============================================================
+  let loadingDepth = 0;
+
+  function showLoading(message = "Loading Data…") {
+    loadingDepth += 1;
+    if (loadingText) loadingText.textContent = message;
+    if (loadingOverlay) loadingOverlay.classList.add('is-on');
+    document.documentElement.style.cursor = 'wait';
+    document.body.style.pointerEvents = 'none';
+  }
+
+  function hideLoading() {
+    loadingDepth = Math.max(0, loadingDepth - 1);
+    if (loadingDepth > 0) return;
+    if (loadingOverlay) loadingOverlay.classList.remove('is-on');
+    document.documentElement.style.cursor = '';
+    document.body.style.pointerEvents = '';
+  }
+
+  async function withLoading(message, fn) {
+    showLoading(message);
+    try {
+      return await fn();
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ============================================================
+  // CLOUD SAVE (shared across computers)
+  // ============================================================
+  const WORKER_BASE = "https://vfx-board-save.production-745.workers.dev";
+
+  // ============================================================
+  // 2) CONFIG DATA
+  // ============================================================
+  const PRIORITIES = ["1ST", "2ND", "PENDING"];
+  const TASKS = [
+    "Color Grade", "Retouch", "Tracking", "Roto/Key",
+    "3D Assets", "3D Environment", "Anim", "Lookdev", "Render", "Matchmove",
+    "COMP"
+  ];
+  const PICS = ["Anh Lộc", "Anh Hiếu", "Anh Thắng", "Anh Phát", "Anh Philip", "Ngân", "Tiến", "Pending"];
+  const STATUSES = ["Not Started", "WIP", "DONE", "APPROVED"];
+
+  // ============================================================
+  // 3) RUNTIME STATE
+  // ============================================================
+  let rowCount = 0;
+  let selectedRowId = null;
+  const letterCounts = Object.create(null);
+  let draggedRow = null;
+
+  // ============================================================
+  // ✅ FILTER/SORT STATE
+  // ============================================================
+  const FILTER_STATE = {
+    priority: "ALL",
+    pic: "ALL",
+    status: "ALL",
+    shotLetter: "ALL" // A/B/C...
+  };
+
+  function getChipSingleValueFromCell(td) {
+    return td?.querySelector(".chip.active")?.dataset?.value || "";
+  }
+
+  // ✅ for PIC multi: get ALL selected chip values in that cell
+  function getChipMultiValuesFromCell(td) {
+    return [...(td?.querySelectorAll(".chip.active") || [])].map(c => c.dataset.value);
+  }
+
+  function parseShot(shotStr) {
+    const s = String(shotStr || "").trim().toUpperCase();
+    const m = s.match(/^([A-Z])_(\d+)/);
+    return {
+      letter: m ? m[1] : "",
+      num: m ? parseInt(m[2], 10) : Number.NaN,
+      raw: s
+    };
+  }
+
+  function getAllShotLetters() {
+    const set = new Set();
+    [...tbody.querySelectorAll("tr")].forEach(tr => {
+      const val = tr.querySelector(".shot-input")?.value || "";
+      const p = parseShot(val);
+      if (p.letter) set.add(p.letter);
+    });
+    return [...set].sort();
+  }
+
+  function updateOrdinalNumbersVisibleOnly() {
+    const rows = [...tbody.querySelectorAll("tr")].filter(tr => tr.style.display !== "none");
+    rows.forEach((tr, idx) => {
+      const ordinalEl = tr.querySelector("td:first-child .muted");
+      if (ordinalEl) ordinalEl.textContent = `No. ${idx + 1}`;
+    });
+  }
+
+  function applyFiltersToRows() {
+    const rows = [...tbody.querySelectorAll("tr")];
+
+    rows.forEach(tr => {
+      const tds = tr.children;
+
+      const pri = getChipSingleValueFromCell(tds[1]);
+      const shot = tr.querySelector(".shot-input")?.value || "";
+      const shotP = parseShot(shot);
+
+      // ✅ PIC is now multi
+      const picValues = getChipMultiValuesFromCell(tds[10]);
+
+      const status = getChipSingleValueFromCell(tds[11]);
+
+      const passPri = (FILTER_STATE.priority === "ALL" || pri === FILTER_STATE.priority);
+
+      // header PIC filter is single-select -> match if that value exists in selected list
+      const passPic = (
+        FILTER_STATE.pic === "ALL" ||
+        picValues.includes(FILTER_STATE.pic)
+      );
+
+      const passStatus = (FILTER_STATE.status === "ALL" || status === FILTER_STATE.status);
+      const passLetter = (FILTER_STATE.shotLetter === "ALL" || shotP.letter === FILTER_STATE.shotLetter);
+
+      const show = passPri && passPic && passStatus && passLetter;
+      tr.style.display = show ? "" : "none";
+    });
+
+    updateOrdinalNumbersVisibleOnly();
+  }
+
+  function sortRowsIfNeeded() {
+    // (left empty intentionally)
+  }
+
+  function rebuildShotLetterOptions(selectEl) {
+    if (!selectEl) return;
+    const current = selectEl.value || "ALL";
+
+    const letters = getAllShotLetters();
+    selectEl.innerHTML = "";
+
+    const optAll = document.createElement("option");
+    optAll.value = "ALL";
+    optAll.textContent = "All";
+    selectEl.appendChild(optAll);
+
+    letters.forEach(L => {
+      const opt = document.createElement("option");
+      opt.value = L;
+      opt.textContent = L;
+      selectEl.appendChild(opt);
+    });
+
+    const has = [...selectEl.options].some(o => o.value === current);
+    selectEl.value = has ? current : "ALL";
+  }
+
+  function initHeaderFilters() {
+    const thPri = document.querySelector("th.col-priority");
+    const thShot = document.querySelector("th.col-shot");
+    const thPic = document.querySelector("th.col-pic");
+    const thStatus = document.querySelector("th.col-status");
+
+    function wrapHeader(th, titleText) {
+      if (!th) return null;
+      th.innerHTML = `
+        <div class="th-head">
+          <div class="th-title">${titleText}</div>
+          <div class="th-controls"></div>
+        </div>
+      `;
+      return th.querySelector(".th-controls");
     }
 
-    tbody.addEventListener("input", (e) => {
-      const ta = e.target.closest("textarea.note-input");
-      if (!ta) return;
-      autoGrowTextarea(ta);
-    });
-
-    tbody.addEventListener("focusin", (e) => {
-      const ta = e.target.closest("textarea.note-input");
-      if (!ta) return;
-      ta.classList.add("is-focus");
-      autoGrowTextarea(ta);
-    });
-
-    tbody.addEventListener("focusout", (e) => {
-      const ta = e.target.closest("textarea.note-input");
-      if (!ta) return;
-      ta.classList.remove("is-focus");
-      autoGrowTextarea(ta); // keep correct height after leaving
-    });
-
-    // ============================================================
-    // 7) SEC IN: CLICK-TO-PLAY
-    // ============================================================
-    function playAtSeconds(sec) {
-      if (!video || !video.src) return showToast('Load a video first');
-      if (!Number.isFinite(sec) || sec < 0) return;
-
-      const trySeek = () => {
-        const dur = Number.isFinite(video.duration) ? video.duration : null;
-        const target = dur ? Math.min(Math.max(0, sec), Math.max(0, dur - 0.01)) : Math.max(0, sec);
-
-        video.currentTime = target;
-        const p = video.play();
-        if (p && typeof p.catch === 'function') p.catch(() => { });
-
-        showToast(`▶ ${target.toFixed(3)}s`);
-      };
-
-      if (video.readyState < 1) {
-        video.addEventListener('loadedmetadata', trySeek, { once: true });
-        return;
-      }
-      trySeek();
+    // PRIORITY
+    const priControls = wrapHeader(thPri, "PRIORITY");
+    if (priControls) {
+      const priSel = document.createElement("select");
+      priSel.className = "th-select";
+      priSel.innerHTML = `
+        <option value="ALL">All</option>
+        <option value="1ST">1ST</option>
+        <option value="2ND">2ND</option>
+        <option value="PENDING">PENDING</option>
+      `;
+      priControls.appendChild(priSel);
+      priSel.addEventListener("change", () => {
+        FILTER_STATE.priority = priSel.value;
+        sortRowsIfNeeded();
+        applyFiltersToRows();
+      });
     }
 
-    tbody.addEventListener('click', (e) => {
-      const btn = e.target.closest('.sec-in-btn');
-      if (!btn) return;
-      const sec = parseFloat(btn.dataset.sec || '');
-      if (Number.isFinite(sec)) playAtSeconds(sec);
-    });
+    // SHOT NAME (letter filter only)
+    const shotControls = wrapHeader(thShot, "SHOT NAME");
+    let shotLetterSel = null;
 
-    // ============================================================
-    // 8) SHOT NAMING
-    // ============================================================
-    function nextShotName() {
-      const letter = (letterEl?.value || "A").toUpperCase();
-      const padDigits = parseInt(padEl?.value || "2", 10) || 2;
+    if (shotControls) {
+      shotLetterSel = document.createElement("select");
+      shotLetterSel.className = "th-select";
+      shotControls.appendChild(shotLetterSel);
 
-      const current = (letterCounts[letter] ?? 0);
-      const next = current + 1;
-      letterCounts[letter] = next;
+      rebuildShotLetterOptions(shotLetterSel);
 
-      return `${letter}_${padNumber(next, padDigits)}`;
+      shotLetterSel.addEventListener("change", () => {
+        FILTER_STATE.shotLetter = shotLetterSel.value;
+        applyFiltersToRows();
+      });
     }
 
-    // ============================================================
-    // 9) CHIP COLOR MAPS (DIFFERENT PER VALUE)
-    // ============================================================
-    const CHIP_STYLE = {
-      priority: {
-        "1ST": { bg: "#1f4ed8", fg: "#ffffff", soft: "#eaf1ff", softBorder: "#bcd0ff", softFg: "#123aa6" },
-        "2ND": { bg: "#4f46e5", fg: "#ffffff", soft: "#eef2ff", softBorder: "#c7d2fe", softFg: "#3730a3" },
-        "PENDING": { bg: "#b45309", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#7c2d12" }
-      },
-      status: {
-        "Not Started": { bg: "#6b7280", fg: "#ffffff", soft: "#f3f4f6", softBorder: "#d1d5db", softFg: "#374151" },
-        "WIP": { bg: "#f97316", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#9a3412" },
-        "DONE": { bg: "#1f4ed8", fg: "#ffffff", soft: "#eaf1ff", softBorder: "#bcd0ff", softFg: "#123aa6" },
-        "APPROVED": { bg: "#16a34a", fg: "#ffffff", soft: "#ecfdf5", softBorder: "#bbf7d0", softFg: "#166534" }
-      },
-      pic: {
-        "Anh Lộc": { bg: "#1f7a3a", fg: "#ffffff", soft: "#edf7f0", softBorder: "#d4ecd9", softFg: "#155a2b" },
-        "Anh Hiếu": { bg: "#0ea5e9", fg: "#ffffff", soft: "#e0f2fe", softBorder: "#bae6fd", softFg: "#075985" },
-        "Anh Thắng": { bg: "#7c3aed", fg: "#ffffff", soft: "#f3e8ff", softBorder: "#e9d5ff", softFg: "#5b21b6" },
-        "Anh Khoa": { bg: "#db2777", fg: "#ffffff", soft: "#fce7f3", softBorder: "#fbcfe8", softFg: "#9d174d" },
-        "Anh Phát": { bg: "#f59e0b", fg: "#111827", soft: "#fffbeb", softBorder: "#fde68a", softFg: "#92400e" },
-        "Anh Philip": { bg: "#111827", fg: "#ffffff", soft: "#f3f4f6", softBorder: "#d1d5db", softFg: "#111827" },
-        "Ngân": { bg: "#14b8a6", fg: "#ffffff", soft: "#ecfeff", softBorder: "#a5f3fc", softFg: "#0f766e" },
-        "Tiến": { bg: "#22c55e", fg: "#ffffff", soft: "#ecfdf5", softBorder: "#bbf7d0", softFg: "#166534" },
-        "Pending": { bg: "#b45309", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#7c2d12" }
-      }
+    // PIC (header filter stays single-select; row PIC is multi)
+    const picControls = wrapHeader(thPic, "PIC");
+    if (picControls) {
+      const picSel = document.createElement("select");
+      picSel.className = "th-select";
+      picSel.innerHTML = `
+        <option value="ALL">All</option>
+        ${PICS.map(p => `<option value="${p}">${p}</option>`).join("")}
+      `;
+      picControls.appendChild(picSel);
+      picSel.addEventListener("change", () => {
+        FILTER_STATE.pic = picSel.value;
+        sortRowsIfNeeded();
+        applyFiltersToRows();
+      });
+    }
+
+    // STATUS
+    const statusControls = wrapHeader(thStatus, "OVERALL STATUS");
+    if (statusControls) {
+      const statusSel = document.createElement("select");
+      statusSel.className = "th-select";
+      statusSel.innerHTML = `
+        <option value="ALL">All</option>
+        ${STATUSES.map(s => `<option value="${s}">${s}</option>`).join("")}
+      `;
+      statusControls.appendChild(statusSel);
+      statusSel.addEventListener("change", () => {
+        FILTER_STATE.status = statusSel.value;
+        sortRowsIfNeeded();
+        applyFiltersToRows();
+      });
+    }
+
+    // Hook: refresh shot letters whenever rows change
+    window.__refreshShotFilters = () => {
+      rebuildShotLetterOptions(shotLetterSel);
     };
 
-    function slugify(str) {
-      return String(str).trim().toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w\-]+/g, '')
-        .replace(/\-+/g, '-');
+    sortRowsIfNeeded();
+    applyFiltersToRows();
+  }
+
+  function refreshFiltersAndSort() {
+    window.__refreshShotFilters?.();
+    sortRowsIfNeeded();
+    applyFiltersToRows();
+  }
+
+  // ============================================================
+  // 4) INIT: Populate letter dropdown A-Z
+  // ============================================================
+  (function initLetterDropdown() {
+    if (!letterEl) return;
+    if (letterEl.options.length > 0) return;
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((l) => {
+      const opt = document.createElement("option");
+      opt.value = l;
+      opt.textContent = l;
+      if (l === "A") opt.selected = true;
+      letterEl.appendChild(opt);
+    });
+  })();
+
+  // ============================================================
+  // 4.5) FILE NAME DISPLAY
+  // ============================================================
+  function getNameFromVideoSrc() {
+    const src = video?.getAttribute('src') || video?.src || "";
+    if (!src) return "";
+    const clean = src.split('?')[0].split('#')[0];
+    return clean.split('/').pop() || "";
+  }
+
+  function setDisplayedFileName(name) {
+    if (!fileNameEl) return;
+    fileNameEl.textContent = name || "No video selected";
+    fileNameEl.title = name || "";
+  }
+
+  setDisplayedFileName(getNameFromVideoSrc());
+  pickFileBtn?.addEventListener('click', () => fileInput?.click());
+
+  // ============================================================
+  // 5) UTILITIES
+  // ============================================================
+  function showToast(msg) {
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1400);
+  }
+
+  function padNumber(n, digits) {
+    return String(n).padStart(digits, '0');
+  }
+
+  function secondsToTC(sec, fps) {
+    const totalFrames = Math.max(0, Math.round(sec * fps));
+    const fpsInt = Math.max(1, Math.round(fps));
+    const ff = totalFrames % fpsInt;
+    const totalSeconds = Math.floor(totalFrames / fpsInt);
+    const ss = totalSeconds % 60;
+    const mm = Math.floor(totalSeconds / 60) % 60;
+    const hh = Math.floor(totalSeconds / 3600);
+    const two = (x) => String(x).padStart(2, '0');
+    return `${two(hh)}:${two(mm)}:${two(ss)}:${two(ff)}`;
+  }
+
+  function captureFrameDataUrl() {
+    if (!video || !video.videoWidth || !video.videoHeight) return null;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/webp', 0.6);
+  }
+
+  function selectRow(rowId) {
+    selectedRowId = rowId;
+    [...tbody.querySelectorAll('tr')].forEach(tr => {
+      tr.classList.toggle('selected', tr.dataset.rowId === selectedRowId);
+    });
+    if (btnCaptureSelected) btnCaptureSelected.disabled = !selectedRowId;
+  }
+
+  function closeAllDropdowns(exceptEl = null) {
+    document.querySelectorAll('.chipdd.open').forEach(dd => {
+      if (exceptEl && dd === exceptEl) return;
+      dd.classList.remove('open');
+    });
+  }
+  document.addEventListener('click', () => closeAllDropdowns());
+
+  // ============================================================
+  // 6) NOTE TEXTAREA: AUTO-GROW + EXPAND ON FOCUS
+  // ============================================================
+  function autoGrowTextarea(el) {
+    el.style.height = "auto";
+    el.style.height = (el.scrollHeight + 2) + "px";
+  }
+
+  tbody.addEventListener("input", (e) => {
+    const ta = e.target.closest("textarea.note-input");
+    if (!ta) return;
+    autoGrowTextarea(ta);
+  });
+
+  tbody.addEventListener("focusin", (e) => {
+    const ta = e.target.closest("textarea.note-input");
+    if (!ta) return;
+    ta.classList.add("is-focus");
+    autoGrowTextarea(ta);
+  });
+
+  tbody.addEventListener("focusout", (e) => {
+    const ta = e.target.closest("textarea.note-input");
+    if (!ta) return;
+    ta.classList.remove("is-focus");
+    autoGrowTextarea(ta);
+  });
+
+  // ============================================================
+  // 7) SEC IN: CLICK-TO-PLAY
+  // ============================================================
+  function playAtSeconds(sec) {
+    if (!video || !video.src) return showToast('Load a video first');
+    if (!Number.isFinite(sec) || sec < 0) return;
+
+    const trySeek = () => {
+      const dur = Number.isFinite(video.duration) ? video.duration : null;
+      const target = dur ? Math.min(Math.max(0, sec), Math.max(0, dur - 0.01)) : Math.max(0, sec);
+
+      video.currentTime = target;
+      const p = video.play();
+      if (p && typeof p.catch === 'function') p.catch(() => { });
+
+      showToast(`▶ ${target.toFixed(3)}s`);
+    };
+
+    if (video.readyState < 1) {
+      video.addEventListener('loadedmetadata', trySeek, { once: true });
+      return;
+    }
+    trySeek();
+  }
+
+  tbody.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sec-in-btn');
+    if (!btn) return;
+    const sec = parseFloat(btn.dataset.sec || '');
+    if (Number.isFinite(sec)) playAtSeconds(sec);
+  });
+
+  // ============================================================
+  // 8) SHOT NAMING
+  // ============================================================
+  function nextShotName() {
+    const letter = (letterEl?.value || "A").toUpperCase();
+    const padDigits = parseInt(padEl?.value || "2", 10) || 2;
+
+    const current = (letterCounts[letter] ?? 0);
+    const next = current + 1;
+    letterCounts[letter] = next;
+
+    return `${letter}_${padNumber(next, padDigits)}`;
+  }
+
+  // ============================================================
+  // 9) CHIP COLOR MAPS
+  // ============================================================
+  const CHIP_STYLE = {
+    priority: {
+      "1ST": { bg: "#1f4ed8", fg: "#ffffff", soft: "#eaf1ff", softBorder: "#bcd0ff", softFg: "#123aa6" },
+      "2ND": { bg: "#4f46e5", fg: "#ffffff", soft: "#eef2ff", softBorder: "#c7d2fe", softFg: "#3730a3" },
+      "PENDING": { bg: "#b45309", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#7c2d12" }
+    },
+    status: {
+      "Not Started": { bg: "#6b7280", fg: "#ffffff", soft: "#f3f4f6", softBorder: "#d1d5db", softFg: "#374151" },
+      "WIP": { bg: "#f97316", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#9a3412" },
+      "DONE": { bg: "#1f4ed8", fg: "#ffffff", soft: "#eaf1ff", softBorder: "#bcd0ff", softFg: "#123aa6" },
+      "APPROVED": { bg: "#16a34a", fg: "#ffffff", soft: "#ecfdf5", softBorder: "#bbf7d0", softFg: "#166534" }
+    },
+    pic: {
+      "Anh Lộc": { bg: "#1f7a3a", fg: "#ffffff", soft: "#edf7f0", softBorder: "#d4ecd9", softFg: "#155a2b" },
+      "Anh Hiếu": { bg: "#0ea5e9", fg: "#ffffff", soft: "#e0f2fe", softBorder: "#bae6fd", softFg: "#075985" },
+      "Anh Thắng": { bg: "#7c3aed", fg: "#ffffff", soft: "#f3e8ff", softBorder: "#e9d5ff", softFg: "#5b21b6" },
+      "Anh Khoa": { bg: "#db2777", fg: "#ffffff", soft: "#fce7f3", softBorder: "#fbcfe8", softFg: "#9d174d" },
+      "Anh Phát": { bg: "#f59e0b", fg: "#111827", soft: "#fffbeb", softBorder: "#fde68a", softFg: "#92400e" },
+      "Anh Philip": { bg: "#111827", fg: "#ffffff", soft: "#f3f4f6", softBorder: "#d1d5db", softFg: "#111827" },
+      "Ngân": { bg: "#14b8a6", fg: "#ffffff", soft: "#ecfeff", softBorder: "#a5f3fc", softFg: "#0f766e" },
+      "Tiến": { bg: "#22c55e", fg: "#ffffff", soft: "#ecfdf5", softBorder: "#bbf7d0", softFg: "#166534" },
+      "Pending": { bg: "#b45309", fg: "#ffffff", soft: "#fff7ed", softBorder: "#fed7aa", softFg: "#7c2d12" }
+    }
+  };
+
+  function slugify(str) {
+    return String(str).trim().toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\-]+/g, '')
+      .replace(/\-+/g, '-');
+  }
+
+  // ============================================================
+  // 10) CHIP DROPDOWN COMPONENT
+  // ============================================================
+  let suppressNextChipClick = false;
+
+  function createChipDropdown({
+    label,
+    items,
+    mode = "single",
+    defaultValue = null,
+    theme = null,
+    multiHasProgress = (mode === "multi"),
+    multiDisplay = "count" // "count" | "list"
+  }) {
+    const dd = document.createElement('div');
+    dd.className = 'chipdd';
+    dd.dataset.theme = theme || "";
+    dd.dataset.value = "";
+
+    const summary = document.createElement('div');
+    summary.className = 'chipdd__summary';
+    summary.innerHTML = `<span class="summary-text"></span><span class="caret">v</span>`;
+    const summaryText = summary.querySelector('.summary-text');
+
+    const menu = document.createElement('div');
+    menu.className = 'chipdd__menu';
+    menu.innerHTML = `
+      <div class="menu-title">
+        <div class="label">${label}</div>
+        <div class="hint">${mode === "multi" ? "multi" : "single"}</div>
+      </div>
+      <div class="chips-wrap"></div>
+    `;
+    const chipsWrap = menu.querySelector('.chips-wrap');
+
+    function applyThemeClass(chip) {
+      if (!theme) return;
+      chip.classList.add(theme);
+      chip.classList.add(`${theme}-${slugify(chip.dataset.value)}`);
     }
 
-    // ============================================================
-    // 10) CHIP DROPDOWN COMPONENT
-    // ============================================================
-    let suppressNextChipClick = false;
+    function applySingleChipSkin(chip) {
+      if (!theme) return;
+      const m = CHIP_STYLE?.[theme]?.[chip.dataset.value];
+      if (!m) return;
 
-    function createChipDropdown({ label, items, mode = "single", defaultValue = null, theme = null }) {
-      const dd = document.createElement('div');
-      dd.className = 'chipdd';
-      dd.dataset.theme = theme || "";
-      dd.dataset.value = "";
+      chip.style.background = m.soft;
+      chip.style.borderColor = m.softBorder;
+      chip.style.color = m.softFg;
+    }
 
-      const summary = document.createElement('div');
-      summary.className = 'chipdd__summary';
-      summary.innerHTML = `<span class="summary-text"></span><span class="caret">v</span>`;
-      const summaryText = summary.querySelector('.summary-text');
+    function applySingleChipActiveSkin(chip, active) {
+      if (!theme) return;
+      const m = CHIP_STYLE?.[theme]?.[chip.dataset.value];
+      if (!m) return;
 
-      const menu = document.createElement('div');
-      menu.className = 'chipdd__menu';
-      menu.innerHTML = `
-        <div class="menu-title">
-          <div class="label">${label}</div>
-          <div class="hint">${mode === "multi" ? "multi" : "single"}</div>
-        </div>
-        <div class="chips-wrap"></div>
-      `;
-      const chipsWrap = menu.querySelector('.chips-wrap');
-
-      function applyThemeClass(chip) {
-        if (!theme) return;
-        chip.classList.add(theme);
-        chip.classList.add(`${theme}-${slugify(chip.dataset.value)}`);
-      }
-
-      function applySingleChipSkin(chip) {
-        if (!theme) return;
-        const m = CHIP_STYLE?.[theme]?.[chip.dataset.value];
-        if (!m) return;
-
+      if (active) {
+        chip.style.background = m.bg;
+        chip.style.borderColor = "transparent";
+        chip.style.color = m.fg;
+      } else {
         chip.style.background = m.soft;
         chip.style.borderColor = m.softBorder;
         chip.style.color = m.softFg;
       }
+    }
 
-      function applySingleChipActiveSkin(chip, active) {
-        if (!theme) return;
-        const m = CHIP_STYLE?.[theme]?.[chip.dataset.value];
-        if (!m) return;
+    function syncSummaryToSelected() {
+      if (!theme) return;
 
+      if (mode === "multi") {
+        dd.dataset.value = "multi";
+        dd.style.removeProperty('--sum-bg');
+        dd.style.removeProperty('--sum-fg');
+        dd.style.removeProperty('--sum-bd');
+        return;
+      }
+
+      const selected = chipsWrap.querySelector('.chip.active');
+      const val = selected ? selected.dataset.value : "";
+      dd.dataset.value = val;
+
+      const m = CHIP_STYLE?.[theme]?.[val];
+      if (!m) {
+        dd.style.removeProperty('--sum-bg');
+        dd.style.removeProperty('--sum-fg');
+        dd.style.removeProperty('--sum-bd');
+        return;
+      }
+
+      dd.style.setProperty('--sum-bg', m.bg);
+      dd.style.setProperty('--sum-fg', m.fg);
+      dd.style.setProperty('--sum-bd', 'transparent');
+    }
+
+    function setChipProgress(chip, p) {
+      const clamped = Math.max(0, Math.min(100, Math.round(p)));
+      chip.dataset.p = String(clamped);
+      chip.style.setProperty('--p', clamped);
+
+      let fillColor;
+      if (clamped <= 25) fillColor = '#ef4444';
+      else if (clamped <= 50) fillColor = '#f97316';
+      else if (clamped <= 75) fillColor = '#facc15';
+      else fillColor = '#22c55e';
+
+      chip.style.setProperty('--fill', fillColor);
+
+      const pct = chip.querySelector('.chip-pct');
+      if (pct) pct.textContent = `${clamped}%`;
+    }
+
+    function enableDragFill(chip) {
+      let dragging = false;
+      let moved = false;
+
+      const getClientX = (e) => (e.touches?.[0] ? e.touches[0].clientX : e.clientX);
+
+      const setFromEvent = (e) => {
+        const rect = chip.getBoundingClientRect();
+        const x = getClientX(e) - rect.left;
+        const pct = (x / rect.width) * 100;
+        setChipProgress(chip, pct);
+      };
+
+      const onMove = (e) => {
+        if (!dragging) return;
+        moved = true;
+        setFromEvent(e);
+        e.preventDefault();
+      };
+
+      const onUp = () => {
+        if (!dragging) return;
+        dragging = false;
+
+        if (moved) {
+          suppressNextChipClick = true;
+          setTimeout(() => { suppressNextChipClick = false; }, 0);
+        }
+
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onUp);
+      };
+
+      chip.addEventListener('pointerdown', (e) => {
+        if (!chip.classList.contains('active')) return;
+        dragging = true;
+        moved = false;
+        chip.setPointerCapture?.(e.pointerId);
+        setFromEvent(e);
+        window.addEventListener('pointermove', onMove, { passive: false });
+        window.addEventListener('pointerup', onUp);
+        e.preventDefault();
+      });
+
+      chip.addEventListener('touchstart', (e) => {
+        if (!chip.classList.contains('active')) return;
+        dragging = true;
+        moved = false;
+        setFromEvent(e);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+        e.preventDefault();
+      }, { passive: false });
+    }
+
+    items.forEach(it => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.dataset.value = it;
+
+      chip.innerHTML = `
+        <span class="chip-label">${it}</span>
+        ${multiHasProgress ? `<span class="chip-pct"></span>` : ``}
+      `;
+
+      applyThemeClass(chip);
+
+      const isActive =
+        (mode === 'single' && defaultValue === it) ||
+        (mode === 'multi' && Array.isArray(defaultValue) && defaultValue.includes(it));
+
+      if (mode === "single" && theme) {
+        applySingleChipSkin(chip);
+        applySingleChipActiveSkin(chip, isActive);
+      }
+
+      if (isActive) {
+        chip.classList.add('active');
+        if (mode === 'multi' && multiHasProgress) setChipProgress(chip, 50);
+      } else {
+        const pctEl = chip.querySelector('.chip-pct');
+        if (pctEl) pctEl.textContent = '';
+      }
+
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (mode === 'multi' && suppressNextChipClick) {
+          e.preventDefault();
+          return;
+        }
+
+        if (mode === 'single') {
+          chipsWrap.querySelectorAll('.chip').forEach(c => {
+            c.classList.remove('active');
+            if (theme) applySingleChipActiveSkin(c, false);
+          });
+
+          chip.classList.add('active');
+          if (theme) applySingleChipActiveSkin(chip, true);
+
+        } else {
+          const becomingActive = !chip.classList.contains('active');
+          chip.classList.toggle('active');
+
+          if (becomingActive) {
+            if (multiHasProgress) setChipProgress(chip, 50);
+          } else {
+            if (multiHasProgress) {
+              chip.style.removeProperty('--p');
+              chip.dataset.p = '';
+              const pctEl = chip.querySelector('.chip-pct');
+              if (pctEl) pctEl.textContent = '';
+            }
+          }
+        }
+
+        refreshSummary();
+        refreshFiltersAndSort();
+      });
+
+      if (mode === 'multi' && multiHasProgress) enableDragFill(chip);
+
+      chipsWrap.appendChild(chip);
+    });
+
+    function getValues() {
+      // For progress-mode: keep old format {task,p}
+      // For tag-mode: return {task} with no p
+      return [...chipsWrap.querySelectorAll('.chip.active')].map(c => {
+        const obj = { task: c.dataset.value };
+        if (multiHasProgress) obj.p = Number(c.dataset.p || 0);
+        return obj;
+      });
+    }
+
+    function getSingle() {
+      const c = chipsWrap.querySelector('.chip.active');
+      return c ? c.dataset.value : "";
+    }
+
+    function refreshSummary() {
+      if (mode === 'single') {
+        summaryText.textContent = getSingle() || '—';
+        syncSummaryToSelected();
+      } else {
+        const active = [...chipsWrap.querySelectorAll('.chip.active')];
+
+        if (!active.length) {
+          summaryText.textContent = '—';
+          syncSummaryToSelected();
+          return;
+        }
+
+        if (multiDisplay === "list") {
+          summaryText.textContent = active.map(c => c.dataset.value).join(", ");
+          syncSummaryToSelected();
+          return;
+        }
+
+        if (!multiHasProgress) {
+          summaryText.textContent = `${active.length} selected`;
+          syncSummaryToSelected();
+          return;
+        }
+
+        const avg = Math.round(active.reduce((s, c) => s + Number(c.dataset.p || 0), 0) / active.length);
+        summaryText.textContent = `${active.length} selected • ${avg}%`;
+        syncSummaryToSelected();
+      }
+    }
+
+    refreshSummary();
+
+    summary.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !dd.classList.contains('open');
+      closeAllDropdowns(dd);
+      dd.classList.toggle('open', willOpen);
+    });
+
+    dd.appendChild(summary);
+    dd.appendChild(menu);
+
+    dd.getValues = getValues;
+    dd.getSingle = getSingle;
+    dd.refreshSummary = refreshSummary;
+
+    return dd;
+  }
+
+  // ============================================================
+  // 11) ROW CREATION
+  // ============================================================
+  function makeRow({ thumbUrl, timeSec }) {
+    rowCount += 1;
+
+    const fps = parseFloat(fpsEl?.value || "25") || 25;
+    const shotName = nextShotName();
+
+    const frameIn = Math.max(0, Math.round(timeSec * fps));
+    const tc = secondsToTC(timeSec, fps);
+
+    const rowId = (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+    const tr = document.createElement('tr');
+    tr.dataset.rowId = rowId;
+
+    const tdNo = document.createElement('td');
+    tdNo.innerHTML = `
+      <button class="drag-handle" type="button" title="Drag to reorder">
+        <span class="muted">No. ${rowCount}</span>
+      </button>
+    `;
+
+    const handle = tdNo.querySelector('.drag-handle');
+    handle.draggable = true;
+
+    handle.addEventListener('dragstart', (e) => {
+      draggedRow = tr;
+      tr.classList.add('dragging');
+      selectRow(tr.dataset.rowId);
+      e.dataTransfer?.setData('text/plain', tr.dataset.rowId);
+      e.dataTransfer?.setDragImage?.(tr, 20, 20);
+    });
+
+    handle.addEventListener('dragend', () => {
+      tr.classList.remove('dragging');
+      draggedRow = null;
+      updateOrdinalNumbersOnly();
+      recountAllShots();
+      showToast('Reordered + recounted');
+      refreshFiltersAndSort();
+    });
+
+    const tdPri = document.createElement('td');
+    tdPri.appendChild(createChipDropdown({
+      label: "Priority", items: PRIORITIES, mode: "single", defaultValue: "1ST", theme: "priority"
+    }));
+
+    const tdShot = document.createElement('td');
+    tdShot.innerHTML = `
+      <input class="cell-input shot-input" value="${shotName}">
+      <div class="muted tc-label">TC ${tc}</div>
+    `;
+
+    const tdThumb = document.createElement('td');
+    tdThumb.innerHTML = `<img class="thumb" src="${thumbUrl || ''}" alt="thumb">`;
+
+    const tdRef = document.createElement('td');
+    tdRef.innerHTML = `<textarea class="cell-input note-input" rows="1" placeholder="Ref link / note"></textarea>`;
+
+    const tdDesc = document.createElement('td');
+    tdDesc.appendChild(createChipDropdown({
+      label: "VFX Progress", items: TASKS, mode: "multi", defaultValue: [], theme: null,
+      multiHasProgress: true, multiDisplay: "count"
+    }));
+
+    const tdFrameIn = document.createElement('td');
+    tdFrameIn.innerHTML = `<input class="cell-input num frame-in" value="${frameIn}">`;
+
+    const tdSecIn = document.createElement('td');
+    tdSecIn.innerHTML = `
+      <button class="sec-in-btn" type="button" title="Play from this time" data-sec="${timeSec.toFixed(3)}">
+        ${timeSec.toFixed(3)}s
+      </button>
+      <div class="muted">capture time</div>
+    `;
+
+    const tdLink = document.createElement('td');
+    tdLink.innerHTML = `<input class="cell-input" placeholder="Drive/Figma link">`;
+
+    const tdFcl = document.createElement('td');
+    tdFcl.innerHTML = `<input class="cell-input" placeholder="e.g. 35mm">`;
+
+    // ✅ PIC = MULTI TAGS (show all in summary)
+    const tdPic = document.createElement('td');
+    tdPic.appendChild(createChipDropdown({
+      label: "PIC",
+      items: PICS,
+      mode: "multi",
+      defaultValue: ["Pending"],
+      theme: "pic",
+      multiHasProgress: false,
+      multiDisplay: "list"
+    }));
+
+    const tdStatus = document.createElement('td');
+    tdStatus.appendChild(createChipDropdown({
+      label: "Overall Status", items: STATUSES, mode: "single", defaultValue: "Not Started", theme: "status"
+    }));
+
+    const tdActions = document.createElement('td');
+    tdActions.innerHTML = `
+      <div class="actions">
+        <button class="icon-btn" title="Delete row" data-action="delete">🗑</button>
+      </div>
+    `;
+
+    tr.append(
+      tdNo, tdPri, tdShot, tdThumb, tdRef, tdDesc,
+      tdFrameIn, tdSecIn, tdLink, tdFcl, tdPic, tdStatus, tdActions
+    );
+    tbody.appendChild(tr);
+
+    const noteTa = tr.querySelector('textarea.note-input');
+    if (noteTa) autoGrowTextarea(noteTa);
+
+    tr.addEventListener('click', (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      selectRow(rowId);
+    });
+
+    tr.querySelectorAll('.chipdd__summary').forEach(s => {
+      s.addEventListener('click', () => selectRow(rowId), { capture: true });
+    });
+
+    tdActions.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      e.stopPropagation();
+      const act = btn.dataset.action;
+
+      if (act === 'delete') {
+        tr.remove();
+        if (selectedRowId === rowId) selectedRowId = null;
+        updateOrdinalNumbersOnly();
+        recountAllShots();
+        showToast('Row deleted');
+        refreshFiltersAndSort();
+      }
+    });
+
+    selectRow(rowId);
+    showToast(`Added ${shotName}`);
+    refreshFiltersAndSort();
+  }
+
+  // ============================================================
+  // 12) UPDATE SELECTED ROW
+  // ============================================================
+  function replaceThumbOnSelected(dataUrl) {
+    if (!selectedRowId) return;
+    const tr = [...tbody.querySelectorAll('tr')].find(r => r.dataset.rowId === selectedRowId);
+    if (!tr) return;
+
+    const img = tr.querySelector('img.thumb');
+    if (img) img.src = dataUrl;
+
+    const fps = parseFloat(fpsEl?.value || "25") || 25;
+    const sec = video.currentTime;
+    const frameIn = Math.max(0, Math.round(sec * fps));
+
+    const frameInput = tr.querySelector('input.frame-in');
+    if (frameInput) frameInput.value = frameIn;
+
+    const secBtn = tr.querySelector('.sec-in-btn');
+    if (secBtn) {
+      secBtn.textContent = `${sec.toFixed(3)}s`;
+      secBtn.dataset.sec = sec.toFixed(3);
+    }
+
+    const tcLabel = tr.querySelector('.tc-label');
+    if (tcLabel) tcLabel.textContent = `TC ${secondsToTC(sec, fps)}`;
+
+    showToast('Updated thumbnail + Sec IN');
+    refreshFiltersAndSort();
+  }
+
+  // ============================================================
+  // 13) DRAG REORDER
+  // ============================================================
+  tbody.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (!draggedRow) return;
+
+    const afterElement = getDragAfterElement(tbody, e.clientY);
+    if (afterElement == null) tbody.appendChild(draggedRow);
+    else tbody.insertBefore(draggedRow, afterElement);
+  });
+
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) return { offset, element: child };
+      return closest;
+    }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+  }
+
+  // ============================================================
+  // 14) RECOUNT + RENUMBER
+  // ============================================================
+  function recountAllShots() {
+    const rows = [...tbody.querySelectorAll('tr')];
+    const padDigits = parseInt(padEl?.value || "2", 10) || 2;
+    const newCounts = Object.create(null);
+
+    rows.forEach((tr) => {
+      const shotInput = tr.querySelector('.shot-input');
+      if (!shotInput) return;
+
+      const val = (shotInput.value || "").trim().toUpperCase();
+      const match = val.match(/^([A-Z])_/);
+      const letter = match ? match[1] : "A";
+
+      newCounts[letter] = (newCounts[letter] ?? 0) + 1;
+      shotInput.value = `${letter}_${padNumber(newCounts[letter], padDigits)}`;
+    });
+
+    for (const k in letterCounts) delete letterCounts[k];
+    for (const k in newCounts) letterCounts[k] = newCounts[k];
+  }
+
+  function updateOrdinalNumbersOnly() {
+    const rows = [...tbody.querySelectorAll('tr')];
+    rowCount = rows.length;
+
+    rows.forEach((tr, index) => {
+      const ordinalEl = tr.querySelector('td:first-child .muted');
+      if (ordinalEl) ordinalEl.textContent = `No. ${index + 1}`;
+    });
+  }
+
+  // ============================================================
+  // 15) MAIN UI EVENTS
+  // ============================================================
+  fileInput?.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+
+    setDisplayedFileName(file.name);
+
+    video.src = URL.createObjectURL(file);
+    video.poster = "";
+    video.load();
+
+    btnCaptureNew.disabled = false;
+    btnCaptureSelected.disabled = !selectedRowId;
+
+    showToast('Video loaded');
+  });
+
+  video.addEventListener('loadedmetadata', () => {
+    btnCaptureNew.disabled = false;
+    btnCaptureSelected.disabled = !selectedRowId;
+    showToast("Video ready");
+  });
+
+  btnCaptureNew?.addEventListener('click', () => {
+    const dataUrl = captureFrameDataUrl();
+    if (!dataUrl) return showToast('Video not ready yet');
+    makeRow({ thumbUrl: dataUrl, timeSec: video.currentTime });
+  });
+
+  btnCaptureSelected?.addEventListener('click', () => {
+    const dataUrl = captureFrameDataUrl();
+    if (!dataUrl) return showToast('Video not ready yet');
+    replaceThumbOnSelected(dataUrl);
+  });
+
+  btnClearAll?.addEventListener('click', () => {
+    closeAllDropdowns();
+    tbody.innerHTML = "";
+    rowCount = 0;
+    selectedRowId = null;
+    if (btnCaptureSelected) btnCaptureSelected.disabled = true;
+    for (const k in letterCounts) delete letterCounts[k];
+    showToast('Board cleared');
+    refreshFiltersAndSort();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    const tag = e.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    if (e.key === 'Escape') closeAllDropdowns();
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (video?.src) video.paused ? video.play() : video.pause();
+    }
+
+    if (e.key.toLowerCase() === 'c') {
+      if (!btnCaptureNew.disabled) btnCaptureNew.click();
+    }
+
+    if (e.key.toLowerCase() === 'u') {
+      if (!btnCaptureSelected.disabled) btnCaptureSelected.click();
+    }
+  });
+
+  // ============================================================
+  // 16) SAVE / LOAD (localStorage) + HELPERS
+  // ============================================================
+  function getBoardDataObject() {
+    const rows = [...tbody.querySelectorAll("tr")];
+
+    const getChipSingle = (cell) =>
+      cell.querySelector(".chip.active")?.dataset.value || null;
+
+    const getChipMulti = (cell) =>
+      [...cell.querySelectorAll(".chip.active")].map(c => ({
+        task: c.dataset.value,
+        // keep p only if it exists (progress-mode)
+        p: (typeof c.dataset.p !== "undefined" && c.dataset.p !== "") ? Number(c.dataset.p || 0) : undefined
+      }));
+
+    return {
+      fps: fpsEl.value,
+      letter: letterEl.value,
+      pad: padEl.value,
+      meta: {
+        camera: metaCamera?.value || "",
+        colorSpace: metaColorSpace?.value || "",
+        resolution: metaResolution?.value || "",
+        treatment: metaTreatment?.value || "",
+        figma: metaFigma?.value || ""
+      },
+      videoRefPath: videoPathDisplay?.value || "",
+      rows: rows.map(tr => ({
+        shot: tr.querySelector(".shot-input")?.value || "",
+        thumb: tr.querySelector("img.thumb")?.src || "",
+        note: tr.querySelector("td:nth-child(5) textarea")?.value || "",
+        frameIn: tr.querySelector(".frame-in")?.value || "",
+        secIn: tr.querySelector(".sec-in-btn")?.dataset.sec || "",
+        link: tr.querySelector("td:nth-child(9) input")?.value || "",
+        fcl: tr.querySelector("td:nth-child(10) input")?.value || "",
+        priority: getChipSingle(tr.children[1]),
+        pic: getChipMulti(tr.children[10]),     // ✅ PIC MULTI
+        status: getChipSingle(tr.children[11]),
+        tasks: getChipMulti(tr.children[5])     // progress-mode
+      }))
+    };
+  }
+
+  function applyBoardDataObject(data, toastMessage = "Imported ✔") {
+    fpsEl.value = data.fps || 25;
+    letterEl.value = data.letter || "A";
+    padEl.value = data.pad || 3;
+
+    if (data.meta) {
+      if (metaCamera) metaCamera.value = data.meta.camera || "";
+      if (metaColorSpace) metaColorSpace.value = data.meta.colorSpace || "";
+      if (metaResolution) metaResolution.value = data.meta.resolution || "";
+      if (metaTreatment) metaTreatment.value = data.meta.treatment || "";
+      if (metaFigma) metaFigma.value = data.meta.figma || "";
+    }
+
+    if (videoPathDisplay) {
+      videoPathDisplay.value = data.videoRefPath || "";
+      localStorage.setItem("vfxVideoReferencePath", (data.videoRefPath || "").trim());
+    }
+
+    tbody.innerHTML = "";
+    rowCount = 0;
+
+    data.rows?.forEach(row => {
+      const secNum = parseFloat(String(row.secIn)) || 0;
+      makeRow({ thumbUrl: row.thumb, timeSec: secNum });
+
+      const tr = tbody.lastElementChild;
+
+      tr.querySelector(".shot-input").value = row.shot || "";
+      tr.querySelector(".frame-in").value = row.frameIn || "";
+
+      const noteTa = tr.querySelector("td:nth-child(5) textarea");
+      if (noteTa) {
+        noteTa.value = row.note || "";
+        autoGrowTextarea(noteTa);
+      }
+
+      const secBtn = tr.querySelector(".sec-in-btn");
+      if (secBtn) {
+        const s = parseFloat(row.secIn) || 0;
+        secBtn.dataset.sec = s.toFixed(3);
+        secBtn.textContent = `${s.toFixed(3)}s`;
+      }
+
+      tr.querySelector("td:nth-child(9) input").value = row.link || "";
+      tr.querySelector("td:nth-child(10) input").value = row.fcl || "";
+
+      restoreSingleChip(tr.children[1], row.priority);
+      restoreMultiChip(tr.children[10], row.pic);     // ✅ PIC MULTI
+      restoreSingleChip(tr.children[11], row.status);
+      restoreMultiChip(tr.children[5], row.tasks);    // progress-mode
+    });
+
+    updateOrdinalNumbersOnly();
+    recountAllShots();
+    showToast(toastMessage);
+
+    refreshFiltersAndSort();
+  }
+
+  function loadBoardFromLocal() {
+    const raw = localStorage.getItem("vfxBoardData");
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    applyBoardDataObject(data, "Board loaded ✔");
+  }
+
+  function restoreSingleChip(cell, value) {
+    if (!cell) return;
+
+    const dd = cell.querySelector(".chipdd");
+    const theme = dd?.dataset?.theme || "";
+
+    cell.querySelectorAll(".chip").forEach(chip => {
+      const active = chip.dataset.value === value;
+      chip.classList.toggle("active", active);
+
+      if (theme && CHIP_STYLE?.[theme]?.[chip.dataset.value]) {
+        const m = CHIP_STYLE[theme][chip.dataset.value];
         if (active) {
           chip.style.background = m.bg;
           chip.style.borderColor = "transparent";
@@ -496,672 +1440,34 @@
           chip.style.color = m.softFg;
         }
       }
-
-      function syncSummaryToSelected() {
-        if (!theme) return;
-
-        if (mode === "multi") {
-          dd.dataset.value = "multi";
-          dd.style.removeProperty('--sum-bg');
-          dd.style.removeProperty('--sum-fg');
-          dd.style.removeProperty('--sum-bd');
-          return;
-        }
-
-        const selected = chipsWrap.querySelector('.chip.active');
-        const val = selected ? selected.dataset.value : "";
-        dd.dataset.value = val;
-
-        const m = CHIP_STYLE?.[theme]?.[val];
-        if (!m) {
-          dd.style.removeProperty('--sum-bg');
-          dd.style.removeProperty('--sum-fg');
-          dd.style.removeProperty('--sum-bd');
-          return;
-        }
-
-        dd.style.setProperty('--sum-bg', m.bg);
-        dd.style.setProperty('--sum-fg', m.fg);
-        dd.style.setProperty('--sum-bd', 'transparent');
-      }
-
-      function setChipProgress(chip, p) {
-        const clamped = Math.max(0, Math.min(100, Math.round(p)));
-        chip.dataset.p = String(clamped);
-        chip.style.setProperty('--p', clamped);
-
-        let fillColor;
-        if (clamped <= 25) fillColor = '#ef4444';
-        else if (clamped <= 50) fillColor = '#f97316';
-        else if (clamped <= 75) fillColor = '#facc15';
-        else fillColor = '#22c55e';
-
-        chip.style.setProperty('--fill', fillColor);
-
-        const pct = chip.querySelector('.chip-pct');
-        if (pct) pct.textContent = `${clamped}%`;
-      }
-
-      function enableDragFill(chip) {
-        let dragging = false;
-        let moved = false;
-
-        const getClientX = (e) => (e.touches?.[0] ? e.touches[0].clientX : e.clientX);
-
-        const setFromEvent = (e) => {
-          const rect = chip.getBoundingClientRect();
-          const x = getClientX(e) - rect.left;
-          const pct = (x / rect.width) * 100;
-          setChipProgress(chip, pct);
-        };
-
-        const onMove = (e) => {
-          if (!dragging) return;
-          moved = true;
-          setFromEvent(e);
-          e.preventDefault();
-        };
-
-        const onUp = () => {
-          if (!dragging) return;
-          dragging = false;
-
-          if (moved) {
-            suppressNextChipClick = true;
-            setTimeout(() => { suppressNextChipClick = false; }, 0);
-          }
-
-          window.removeEventListener('pointermove', onMove);
-          window.removeEventListener('pointerup', onUp);
-          window.removeEventListener('touchmove', onMove);
-          window.removeEventListener('touchend', onUp);
-        };
-
-        chip.addEventListener('pointerdown', (e) => {
-          if (!chip.classList.contains('active')) return;
-          dragging = true;
-          moved = false;
-          chip.setPointerCapture?.(e.pointerId);
-          setFromEvent(e);
-          window.addEventListener('pointermove', onMove, { passive: false });
-          window.addEventListener('pointerup', onUp);
-          e.preventDefault();
-        });
-
-        chip.addEventListener('touchstart', (e) => {
-          if (!chip.classList.contains('active')) return;
-          dragging = true;
-          moved = false;
-          setFromEvent(e);
-          window.addEventListener('touchmove', onMove, { passive: false });
-          window.addEventListener('touchend', onUp);
-          e.preventDefault();
-        }, { passive: false });
-      }
-
-      items.forEach(it => {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'chip';
-        chip.dataset.value = it;
-        chip.innerHTML = `<span class="chip-label">${it}</span><span class="chip-pct"></span>`;
-
-        applyThemeClass(chip);
-
-        const isActive =
-          (mode === 'single' && defaultValue === it) ||
-          (mode === 'multi' && Array.isArray(defaultValue) && defaultValue.includes(it));
-
-        if (mode === "single" && theme) {
-          applySingleChipSkin(chip);
-          applySingleChipActiveSkin(chip, isActive);
-        }
-
-        if (isActive) {
-          chip.classList.add('active');
-          if (mode === 'multi') setChipProgress(chip, 50);
-        } else {
-          chip.querySelector('.chip-pct').textContent = '';
-        }
-
-        chip.addEventListener('click', (e) => {
-          e.stopPropagation();
-
-          if (mode === 'multi' && suppressNextChipClick) {
-            e.preventDefault();
-            return;
-          }
-
-          if (mode === 'single') {
-            chipsWrap.querySelectorAll('.chip').forEach(c => {
-              c.classList.remove('active');
-              if (theme) applySingleChipActiveSkin(c, false);
-            });
-
-            chip.classList.add('active');
-            if (theme) applySingleChipActiveSkin(chip, true);
-
-          } else {
-            const becomingActive = !chip.classList.contains('active');
-            chip.classList.toggle('active');
-
-            if (becomingActive) {
-              setChipProgress(chip, 50);
-            } else {
-              chip.style.removeProperty('--p');
-              chip.dataset.p = '';
-              chip.querySelector('.chip-pct').textContent = '';
-            }
-          }
-
-          refreshSummary();
-        });
-
-        if (mode === 'multi') enableDragFill(chip);
-
-        chipsWrap.appendChild(chip);
-      });
-
-      function getValues() {
-        return [...chipsWrap.querySelectorAll('.chip.active')].map(c => ({
-          task: c.dataset.value,
-          p: Number(c.dataset.p || 0)
-        }));
-      }
-
-      function getSingle() {
-        const c = chipsWrap.querySelector('.chip.active');
-        return c ? c.dataset.value : "";
-      }
-
-      function refreshSummary() {
-        if (mode === 'single') {
-          summaryText.textContent = getSingle() || '—';
-          syncSummaryToSelected();
-        } else {
-          const active = [...chipsWrap.querySelectorAll('.chip.active')];
-          if (!active.length) {
-            summaryText.textContent = 'Pick tasks';
-            syncSummaryToSelected();
-            return;
-          }
-          const avg = Math.round(active.reduce((s, c) => s + Number(c.dataset.p || 0), 0) / active.length);
-          summaryText.textContent = `${active.length} selected • ${avg}%`;
-          syncSummaryToSelected();
-        }
-      }
-
-      refreshSummary();
-
-      summary.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const willOpen = !dd.classList.contains('open');
-        closeAllDropdowns(dd);
-        dd.classList.toggle('open', willOpen);
-      });
-
-      dd.appendChild(summary);
-      dd.appendChild(menu);
-
-      dd.getValues = getValues;
-      dd.getSingle = getSingle;
-      dd.refreshSummary = refreshSummary;
-
-      return dd;
-    }
-
-    // ============================================================
-    // 11) ROW CREATION
-    // ============================================================
-    function makeRow({ thumbUrl, timeSec }) {
-      rowCount += 1;
-
-      const fps = parseFloat(fpsEl?.value || "25") || 25;
-      const shotName = nextShotName();
-
-      const frameIn = Math.max(0, Math.round(timeSec * fps));
-      const tc = secondsToTC(timeSec, fps);
-
-      const rowId = (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
-      const tr = document.createElement('tr');
-      tr.dataset.rowId = rowId;
-
-      const tdNo = document.createElement('td');
-      tdNo.innerHTML = `
-        <button class="drag-handle" type="button" title="Drag to reorder">
-          <span class="muted">No. ${rowCount}</span>
-        </button>
-      `;
-
-      const handle = tdNo.querySelector('.drag-handle');
-      handle.draggable = true;
-
-      handle.addEventListener('dragstart', (e) => {
-        draggedRow = tr;
-        tr.classList.add('dragging');
-        selectRow(tr.dataset.rowId);
-        e.dataTransfer?.setData('text/plain', tr.dataset.rowId);
-        e.dataTransfer?.setDragImage?.(tr, 20, 20);
-      });
-
-      handle.addEventListener('dragend', () => {
-        tr.classList.remove('dragging');
-        draggedRow = null;
-        updateOrdinalNumbersOnly();
-        recountAllShots();
-        showToast('Reordered + recounted');
-      });
-
-      const tdPri = document.createElement('td');
-      tdPri.appendChild(createChipDropdown({
-        label: "Priority", items: PRIORITIES, mode: "single", defaultValue: "1ST", theme: "priority"
-      }));
-
-      const tdShot = document.createElement('td');
-      tdShot.innerHTML = `
-        <input class="cell-input shot-input" value="${shotName}">
-        <div class="muted tc-label">TC ${tc}</div>
-      `;
-
-      const tdThumb = document.createElement('td');
-      tdThumb.innerHTML = `<img class="thumb" src="${thumbUrl || ''}" alt="thumb">`;
-
-      const tdRef = document.createElement('td');
-      tdRef.innerHTML = `<textarea class="cell-input note-input" rows="1" placeholder="Ref link / note"></textarea>`;
-
-      const tdDesc = document.createElement('td');
-      tdDesc.appendChild(createChipDropdown({
-        label: "VFX Progress", items: TASKS, mode: "multi", defaultValue: [], theme: null
-      }));
-
-      const tdFrameIn = document.createElement('td');
-      tdFrameIn.innerHTML = `<input class="cell-input num frame-in" value="${frameIn}">`;
-
-      const tdSecIn = document.createElement('td');
-      tdSecIn.innerHTML = `
-        <button class="sec-in-btn" type="button" title="Play from this time" data-sec="${timeSec.toFixed(3)}">
-          ${timeSec.toFixed(3)}s
-        </button>
-        <div class="muted">capture time</div>
-      `;
-
-      const tdLink = document.createElement('td');
-      tdLink.innerHTML = `<input class="cell-input" placeholder="Drive/Figma link">`;
-
-      const tdFcl = document.createElement('td');
-      tdFcl.innerHTML = `<input class="cell-input" placeholder="e.g. 35mm">`;
-
-      const tdPic = document.createElement('td');
-      tdPic.appendChild(createChipDropdown({
-        label: "PIC", items: PICS, mode: "single", defaultValue: "Pending", theme: "pic"
-      }));
-
-      const tdStatus = document.createElement('td');
-      tdStatus.appendChild(createChipDropdown({
-        label: "Overall Status", items: STATUSES, mode: "single", defaultValue: "Not Started", theme: "status"
-      }));
-
-      const tdActions = document.createElement('td');
-      tdActions.innerHTML = `
-        <div class="actions">
-          <button class="icon-btn" title="Delete row" data-action="delete">🗑</button>
-        </div>
-      `;
-
-      tr.append(
-        tdNo, tdPri, tdShot, tdThumb, tdRef, tdDesc,
-        tdFrameIn, tdSecIn, tdLink, tdFcl, tdPic, tdStatus, tdActions
-      );
-      tbody.appendChild(tr);
-
-      // ensure new textarea starts correct height
-      const noteTa = tr.querySelector('textarea.note-input');
-      if (noteTa) autoGrowTextarea(noteTa);
-
-      tr.addEventListener('click', (e) => {
-        const tag = e.target?.tagName;
-        if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-        selectRow(rowId);
-      });
-
-      tr.querySelectorAll('.chipdd__summary').forEach(s => {
-        s.addEventListener('click', () => selectRow(rowId), { capture: true });
-      });
-
-      tdActions.addEventListener('click', (e) => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        e.stopPropagation();
-        const act = btn.dataset.action;
-
-        if (act === 'delete') {
-          tr.remove();
-          if (selectedRowId === rowId) selectedRowId = null;
-          updateOrdinalNumbersOnly();
-          recountAllShots();
-          showToast('Row deleted');
-        }
-      });
-
-      selectRow(rowId);
-      showToast(`Added ${shotName}`);
-    }
-
-    // ============================================================
-    // 12) UPDATE SELECTED ROW (thumb + sec/frame/timecode)
-    // ============================================================
-    function replaceThumbOnSelected(dataUrl) {
-      if (!selectedRowId) return;
-      const tr = [...tbody.querySelectorAll('tr')].find(r => r.dataset.rowId === selectedRowId);
-      if (!tr) return;
-
-      const img = tr.querySelector('img.thumb');
-      if (img) img.src = dataUrl;
-
-      const fps = parseFloat(fpsEl?.value || "25") || 25;
-      const sec = video.currentTime;
-      const frameIn = Math.max(0, Math.round(sec * fps));
-
-      const frameInput = tr.querySelector('input.frame-in');
-      if (frameInput) frameInput.value = frameIn;
-
-      const secBtn = tr.querySelector('.sec-in-btn');
-      if (secBtn) {
-        secBtn.textContent = `${sec.toFixed(3)}s`;
-        secBtn.dataset.sec = sec.toFixed(3);
-      }
-
-      const tcLabel = tr.querySelector('.tc-label');
-      if (tcLabel) tcLabel.textContent = `TC ${secondsToTC(sec, fps)}`;
-
-      showToast('Updated thumbnail + Sec IN');
-    }
-
-    // ============================================================
-    // 13) DRAG REORDER
-    // ============================================================
-    tbody.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      if (!draggedRow) return;
-
-      const afterElement = getDragAfterElement(tbody, e.clientY);
-      if (afterElement == null) tbody.appendChild(draggedRow);
-      else tbody.insertBefore(draggedRow, afterElement);
     });
 
-    function getDragAfterElement(container, y) {
-      const draggableElements = [...container.querySelectorAll('tr:not(.dragging)')];
+    dd?.refreshSummary?.();
+  }
 
-      return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) return { offset, element: child };
-        return closest;
-      }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
-    }
+  function restoreMultiChip(cell, tasks) {
+    if (!cell) return;
 
-    // ============================================================
-    // 14) RECOUNT + RENUMBER
-    // ============================================================
-    function recountAllShots() {
-      const rows = [...tbody.querySelectorAll('tr')];
-      const padDigits = parseInt(padEl?.value || "2", 10) || 2;
-      const newCounts = Object.create(null);
-
-      rows.forEach((tr) => {
-        const shotInput = tr.querySelector('.shot-input');
-        if (!shotInput) return;
-
-        const val = (shotInput.value || "").trim().toUpperCase();
-        const match = val.match(/^([A-Z])_/);
-        const letter = match ? match[1] : "A";
-
-        newCounts[letter] = (newCounts[letter] ?? 0) + 1;
-        shotInput.value = `${letter}_${padNumber(newCounts[letter], padDigits)}`;
-      });
-
-      for (const k in letterCounts) delete letterCounts[k];
-      for (const k in newCounts) letterCounts[k] = newCounts[k];
-    }
-
-    function updateOrdinalNumbersOnly() {
-      const rows = [...tbody.querySelectorAll('tr')];
-      rowCount = rows.length;
-
-      rows.forEach((tr, index) => {
-        const ordinalEl = tr.querySelector('td:first-child .muted');
-        if (ordinalEl) ordinalEl.textContent = `No. ${index + 1}`;
-      });
-    }
-
-    // ============================================================
-    // 15) MAIN UI EVENTS
-    // ============================================================
-    fileInput?.addEventListener('change', () => {
-      const file = fileInput.files?.[0];
-      if (!file) return;
-
-      setDisplayedFileName(file.name);
-
-      video.src = URL.createObjectURL(file);
-      video.poster = "";
-      video.load();
-
-      btnCaptureNew.disabled = false;
-      btnCaptureSelected.disabled = !selectedRowId;
-
-      showToast('Video loaded');
+    cell.querySelectorAll(".chip").forEach(chip => {
+      chip.classList.remove("active");
+      chip.dataset.p = "";
+      chip.style.removeProperty("--p");
+      chip.style.removeProperty("--fill");
+      const pctEl = chip.querySelector(".chip-pct");
+      if (pctEl) pctEl.textContent = "";
     });
 
-    video.addEventListener('loadedmetadata', () => {
-      btnCaptureNew.disabled = false;
-      btnCaptureSelected.disabled = !selectedRowId;
-      showToast("Video ready");
-    });
-
-    btnCaptureNew?.addEventListener('click', () => {
-      const dataUrl = captureFrameDataUrl();
-      if (!dataUrl) return showToast('Video not ready yet');
-      makeRow({ thumbUrl: dataUrl, timeSec: video.currentTime });
-    });
-
-    btnCaptureSelected?.addEventListener('click', () => {
-      const dataUrl = captureFrameDataUrl();
-      if (!dataUrl) return showToast('Video not ready yet');
-      replaceThumbOnSelected(dataUrl);
-    });
-
-    btnClearAll?.addEventListener('click', () => {
-      closeAllDropdowns();
-      tbody.innerHTML = "";
-      rowCount = 0;
-      selectedRowId = null;
-      if (btnCaptureSelected) btnCaptureSelected.disabled = true;
-      for (const k in letterCounts) delete letterCounts[k];
-      showToast('Board cleared');
-    });
-
-    window.addEventListener('keydown', (e) => {
-      const tag = e.target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      if (e.key === 'Escape') closeAllDropdowns();
-
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (video?.src) video.paused ? video.play() : video.pause();
-      }
-
-      if (e.key.toLowerCase() === 'c') {
-        if (!btnCaptureNew.disabled) btnCaptureNew.click();
-      }
-
-      if (e.key.toLowerCase() === 'u') {
-        if (!btnCaptureSelected.disabled) btnCaptureSelected.click();
-      }
-    });
-
-    // ============================================================
-    // 16) SAVE / LOAD (localStorage) + SHARED BOARD DATA HELPERS
-    // ============================================================
-    function getBoardDataObject() {
-      const rows = [...tbody.querySelectorAll("tr")];
-
-      const getChipSingle = (cell) =>
-        cell.querySelector(".chip.active")?.dataset.value || null;
-
-      const getChipMulti = (cell) =>
-        [...cell.querySelectorAll(".chip.active")].map(c => ({
-          task: c.dataset.value,
-          p: Number(c.dataset.p || 0)
-        }));
-
-      return {
-        fps: fpsEl.value,
-        letter: letterEl.value,
-        pad: padEl.value,
-        meta: {
-          camera: metaCamera?.value || "",
-          colorSpace: metaColorSpace?.value || "",
-          resolution: metaResolution?.value || "",
-          treatment: metaTreatment?.value || "",
-          figma: metaFigma?.value || ""
-        },
-        videoRefPath: videoPathDisplay?.value || "",
-        rows: rows.map(tr => ({
-          shot: tr.querySelector(".shot-input")?.value || "",
-          thumb: tr.querySelector("img.thumb")?.src || "",
-          note: tr.querySelector("td:nth-child(5) textarea")?.value || "",
-          frameIn: tr.querySelector(".frame-in")?.value || "",
-          secIn: tr.querySelector(".sec-in-btn")?.dataset.sec || "",
-          link: tr.querySelector("td:nth-child(9) input")?.value || "",
-          fcl: tr.querySelector("td:nth-child(10) input")?.value || "",
-          priority: getChipSingle(tr.children[1]),
-          pic: getChipSingle(tr.children[10]),
-          status: getChipSingle(tr.children[11]),
-          tasks: getChipMulti(tr.children[5])
-        }))
-      };
-    }
-
-    function applyBoardDataObject(data, toastMessage = "Imported ✔") {
-      fpsEl.value = data.fps || 25;
-      letterEl.value = data.letter || "A";
-      padEl.value = data.pad || 3;
-
-      if (data.meta) {
-        if (metaCamera) metaCamera.value = data.meta.camera || "";
-        if (metaColorSpace) metaColorSpace.value = data.meta.colorSpace || "";
-        if (metaResolution) metaResolution.value = data.meta.resolution || "";
-        if (metaTreatment) metaTreatment.value = data.meta.treatment || "";
-        if (metaFigma) metaFigma.value = data.meta.figma || "";
-      }
-
-      if (videoPathDisplay) {
-        videoPathDisplay.value = data.videoRefPath || "";
-        localStorage.setItem("vfxVideoReferencePath", (data.videoRefPath || "").trim());
-      }
-
-      tbody.innerHTML = "";
-      rowCount = 0;
-
-      data.rows?.forEach(row => {
-        const secNum = parseFloat(String(row.secIn)) || 0;
-        makeRow({ thumbUrl: row.thumb, timeSec: secNum });
-
-        const tr = tbody.lastElementChild;
-
-        tr.querySelector(".shot-input").value = row.shot || "";
-        tr.querySelector(".frame-in").value = row.frameIn || "";
-
-        const noteTa = tr.querySelector("td:nth-child(5) textarea");
-        if (noteTa) {
-          noteTa.value = row.note || "";
-          autoGrowTextarea(noteTa);
-        }
-
-        const secBtn = tr.querySelector(".sec-in-btn");
-        if (secBtn) {
-          const s = parseFloat(row.secIn) || 0;
-          secBtn.dataset.sec = s.toFixed(3);
-          secBtn.textContent = `${s.toFixed(3)}s`;
-        }
-
-        tr.querySelector("td:nth-child(9) input").value = row.link || "";
-        tr.querySelector("td:nth-child(10) input").value = row.fcl || "";
-
-        restoreSingleChip(tr.children[1], row.priority);
-        restoreSingleChip(tr.children[10], row.pic);
-        restoreSingleChip(tr.children[11], row.status);
-        restoreMultiChip(tr.children[5], row.tasks);
-      });
-
-      updateOrdinalNumbersOnly();
-      recountAllShots();
-      showToast(toastMessage);
-    }
-
-    function saveBoardToLocal() {
-      const boardData = getBoardDataObject();
-      localStorage.setItem("vfxBoardData", JSON.stringify(boardData));
-      if (videoPathDisplay) localStorage.setItem("vfxVideoReferencePath", (videoPathDisplay.value || "").trim());
-      showToast("Board saved locally 💾");
-    }
-
-    function loadBoardFromLocal() {
-      const raw = localStorage.getItem("vfxBoardData");
-      if (!raw) return;
-
-      const data = JSON.parse(raw);
-      applyBoardDataObject(data, "Board loaded ✔");
-    }
-
-    function restoreSingleChip(cell, value) {
-      if (!cell) return;
-
-      const dd = cell.querySelector(".chipdd");
-      const theme = dd?.dataset?.theme || "";
-
+    if (Array.isArray(tasks)) {
       cell.querySelectorAll(".chip").forEach(chip => {
-        const active = chip.dataset.value === value;
-        chip.classList.toggle("active", active);
+        const match = tasks.find(t =>
+          (t && t.task === chip.dataset.value) || (t && t.value === chip.dataset.value)
+        );
+        if (!match) return;
 
-        if (theme && CHIP_STYLE?.[theme]?.[chip.dataset.value]) {
-          const m = CHIP_STYLE[theme][chip.dataset.value];
-          if (active) {
-            chip.style.background = m.bg;
-            chip.style.borderColor = "transparent";
-            chip.style.color = m.fg;
-          } else {
-            chip.style.background = m.soft;
-            chip.style.borderColor = m.softBorder;
-            chip.style.color = m.softFg;
-          }
-        }
-      });
+        chip.classList.add("active");
 
-      dd?.refreshSummary?.();
-    }
-
-    function restoreMultiChip(cell, tasks) {
-      if (!cell) return;
-
-      cell.querySelectorAll(".chip").forEach(chip => {
-        chip.classList.remove("active");
-        chip.dataset.p = "";
-        chip.style.removeProperty("--p");
-        chip.style.removeProperty("--fill");
-        const pctEl = chip.querySelector(".chip-pct");
-        if (pctEl) pctEl.textContent = "";
-      });
-
-      if (Array.isArray(tasks)) {
-        cell.querySelectorAll(".chip").forEach(chip => {
-          const match = tasks.find(t => t.task === chip.dataset.value);
-          if (!match) return;
-
-          chip.classList.add("active");
-
+        // If p exists -> progress-mode, else tag-mode
+        if (typeof match.p !== "undefined") {
           const p = Number(match.p || 0);
           chip.dataset.p = p;
           chip.style.setProperty("--p", p);
@@ -1176,145 +1482,148 @@
 
           const pctEl = chip.querySelector(".chip-pct");
           if (pctEl) pctEl.textContent = `${p}%`;
-        });
-      }
-
-      const dd = cell.querySelector(".chipdd");
-      dd?.refreshSummary?.();
-    }
-
-    // ============================================================
-    // ✅ CLOUD SAVE/LOAD
-    // ============================================================
-    async function loadBoardFromCloud() {
-      return withLoading("Loading Data…", async () => {
-        const res = await fetch(`${WORKER_BASE}/load`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`Cloud load failed (${res.status})`);
-        const data = await res.json();
-        applyBoardDataObject(data, "Loaded from cloud ☁️");
-        localStorage.setItem("vfxBoardData", JSON.stringify(data));
-        window.__cloudLoaded = true;
+        } else {
+          // tag-mode (PIC): no progress UI
+          chip.dataset.p = "";
+          chip.style.removeProperty("--p");
+          chip.style.removeProperty("--fill");
+          const pctEl = chip.querySelector(".chip-pct");
+          if (pctEl) pctEl.textContent = "";
+        }
       });
     }
 
-    async function saveBoardToCloud() {
-      return withLoading("Saving Data…", async () => {
-        const data = getBoardDataObject();
+    const dd = cell.querySelector(".chipdd");
+    dd?.refreshSummary?.();
+  }
 
-        const res = await fetch(`${WORKER_BASE}/save`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
+  // ============================================================
+  // ✅ CLOUD SAVE/LOAD
+  // ============================================================
+  async function loadBoardFromCloud() {
+    return withLoading("Loading Data…", async () => {
+      const res = await fetch(`${WORKER_BASE}/load`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Cloud load failed (${res.status})`);
+      const data = await res.json();
+      applyBoardDataObject(data, "Loaded from cloud ☁️");
+      localStorage.setItem("vfxBoardData", JSON.stringify(data));
+      window.__cloudLoaded = true;
+    });
+  }
 
-        if (!res.ok) throw new Error(`Cloud save failed (${res.status})`);
+  async function saveBoardToCloud() {
+    return withLoading("Saving Data…", async () => {
+      const data = getBoardDataObject();
 
-        localStorage.setItem("vfxBoardData", JSON.stringify(data));
-        showToast("Saved to cloud ☁️💾");
+      const res = await fetch(`${WORKER_BASE}/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      if (!res.ok) throw new Error(`Cloud save failed (${res.status})`);
+
+      localStorage.setItem("vfxBoardData", JSON.stringify(data));
+      showToast("Saved to cloud ☁️💾");
+    });
+  }
+
+  // Wrap local loader so cloud has priority
+  const __loadLocalOriginal = loadBoardFromLocal;
+  loadBoardFromLocal = function () {
+    if (window.__cloudLoaded) return;
+    return withLoading("Loading Data…", async () => __loadLocalOriginal());
+  };
+
+  // Show loading immediately
+  showLoading("Loading Data…");
+
+  window.addEventListener("DOMContentLoaded", () => {
+    initHeaderFilters();
+
+    loadBoardFromCloud().catch(err => {
+      console.warn("Cloud load failed, fallback to local", err);
+      window.__cloudLoaded = false;
+    }).finally(() => {
+      hideLoading();
+    });
+  });
+
+  document.getElementById("saveBoard")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    saveBoardToCloud().catch(err => {
+      console.error(err);
+      showToast("Cloud save failed ❌");
+    });
+  }, true);
+
+  window.addEventListener("DOMContentLoaded", loadBoardFromLocal);
+
+  // ============================================================
+  // 17) VIDEO PATH REFERENCE
+  // ============================================================
+  videoPathDisplay?.addEventListener("input", () => {
+    localStorage.setItem("vfxVideoReferencePath", (videoPathDisplay.value || "").trim());
+  });
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const savedPath = localStorage.getItem("vfxVideoReferencePath");
+    if (savedPath && videoPathDisplay) videoPathDisplay.value = savedPath;
+  });
+
+  // ============================================================
+  // 18) SPLITTER (TOP HEIGHT)
+  // ============================================================
+  (function initSplitters() {
+    const splitH = document.getElementById('splitH');
+    const layout = document.getElementById('layout');
+    if (!splitH || !layout) return;
+
+    function setTop(clientY) {
+      const rect = layout.getBoundingClientRect();
+      const minTop = 70;
+      const minBoard = 220;
+
+      const y = Math.max(minTop, Math.min(clientY - rect.top, rect.height - minBoard));
+      document.documentElement.style.setProperty('--topH', y + 'px');
+
+      const threshold = rect.height * 0.45;
+      const topSplit = document.getElementById('topSplit');
+
+      if (y < threshold) topSplit.classList.add('is-dimmed');
+      else topSplit.classList.remove('is-dimmed');
+    }
+
+    function enableDrag(el, onMove) {
+      let dragging = false;
+
+      el.addEventListener('pointerdown', e => {
+        dragging = true;
+        el.classList.add('is-dragging');
+        el.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      });
+
+      el.addEventListener('pointermove', e => {
+        if (!dragging) return;
+        onMove(e.clientY);
+      });
+
+      el.addEventListener('pointerup', () => {
+        dragging = false;
+        el.classList.remove('is-dragging');
+      });
+
+      el.addEventListener('pointercancel', () => {
+        dragging = false;
+        el.classList.remove('is-dragging');
       });
     }
 
-    // Wrap your existing functions (so your original event listeners can stay untouched)
-    const __loadLocalOriginal = loadBoardFromLocal;
-    loadBoardFromLocal = function () {
-      if (window.__cloudLoaded) return;
-      return withLoading("Loading Data…", async () => __loadLocalOriginal());
-    };
-
-    // Show loading immediately at first paint, then cloud/local will dismiss it
-    showLoading("Loading Data…");
-
-    // Try cloud first on load (then your existing local loader can still run as fallback)
-    window.addEventListener("DOMContentLoaded", () => {
-      loadBoardFromCloud().catch(err => {
-        console.warn("Cloud load failed, fallback to local", err);
-        window.__cloudLoaded = false;
-      }).finally(() => {
-        // if cloud load failed, local loader will handle; but ensure overlay doesn't get stuck
-        hideLoading();
-      });
-    });
-
-    // Make "Save Board" save to cloud (and stop the old local-only click handler from firing)
-    document.getElementById("saveBoard")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      saveBoardToCloud().catch(err => {
-        console.error(err);
-        showToast("Cloud save failed ❌");
-      });
-    }, true);
-
-    // ============================================================
-    // (Your original lines below remain the same)
-    // ============================================================
-    window.addEventListener("DOMContentLoaded", loadBoardFromLocal);
-
-    // ============================================================
-    // 17) VIDEO PATH REFERENCE (separate localStorage key)
-    // ============================================================
-    videoPathDisplay?.addEventListener("input", () => {
-      localStorage.setItem("vfxVideoReferencePath", (videoPathDisplay.value || "").trim());
-    });
-
-    window.addEventListener("DOMContentLoaded", () => {
-      const savedPath = localStorage.getItem("vfxVideoReferencePath");
-      if (savedPath && videoPathDisplay) videoPathDisplay.value = savedPath;
-    });
-
-    // ============================================================
-    // 18) SPLITTER (TOP HEIGHT)
-    // ============================================================
-    (function initSplitters() {
-      const splitH = document.getElementById('splitH');
-      const layout = document.getElementById('layout');
-      if (!splitH || !layout) return;
-
-      function setTop(clientY) {
-        const rect = layout.getBoundingClientRect();
-        const minTop = 70;
-        const minBoard = 220;
-
-        const y = Math.max(minTop, Math.min(clientY - rect.top, rect.height - minBoard));
-        document.documentElement.style.setProperty('--topH', y + 'px');
-
-        const threshold = rect.height * 0.45;
-        const topSplit = document.getElementById('topSplit');
-
-        if (y < threshold) topSplit.classList.add('is-dimmed');
-        else topSplit.classList.remove('is-dimmed');
-      }
-
-      function enableDrag(el, onMove) {
-        let dragging = false;
-
-        el.addEventListener('pointerdown', e => {
-          dragging = true;
-          el.classList.add('is-dragging');
-          el.setPointerCapture(e.pointerId);
-          e.preventDefault();
-        });
-
-        el.addEventListener('pointermove', e => {
-          if (!dragging) return;
-          onMove(e.clientY);
-        });
-
-        el.addEventListener('pointerup', () => {
-          dragging = false;
-          el.classList.remove('is-dragging');
-        });
-
-        el.addEventListener('pointercancel', () => {
-          dragging = false;
-          el.classList.remove('is-dragging');
-        });
-      }
-
-      enableDrag(splitH, setTop);
-    })();
-  </script>
+    enableDrag(splitH, setTop);
+  })();
+</script>
 </body>
 
 </html>
-
