@@ -1517,4 +1517,39 @@ textarea.note-input{
 
 .vfx-table tr{
   height:auto !important;
+
 }
+
+
+
+
+/* ================= OVERLAY ================= */
+
+  .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.90);
+      backdrop-filter: blur(1px);
+      -webkit-backdrop-filter: blur(1px);
+    }
+
+    .loading-overlay.is-on {
+      display: flex;
+    }
+
+    .loading-overlay .loading-box {
+      font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      letter-spacing: .02em;
+      color: #000000;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      user-select: none;
+      pointer-events: none;
+    }
