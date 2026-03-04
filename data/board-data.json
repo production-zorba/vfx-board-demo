@@ -3,8 +3,8 @@
   "letter": "G",
   "pad": "2",
   "meta": {
-    "camera": "ARRI MINI LF",
-    "colorSpace": "ARRI LOG C 3 & SONY FX6",
+    "camera": "ARRI MINI LF vs SONY FX6",
+    "colorSpace": "ARRI LOG C 3 & Slog3",
     "resolution": "3840 x 2160 - ProRes 422 HQ",
     "treatment": "https://www.canva.com/design/DAG6onyq4rc/12LRlptC5bbncHVsLS80nw/edit",
     "figma": "figma.com/board/6urhCowfH6ucKjXsd13lmy/BB-TRAN---BOARD?t=fqpRO27naTfdJKJI-0"
