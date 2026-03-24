@@ -195,7 +195,7 @@
           "task": "Anh Thắng"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -212,7 +212,7 @@
           "task": "Anh Thắng"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -229,7 +229,7 @@
           "task": "Anh Thắng"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -246,7 +246,7 @@
           "task": "Anh Thắng"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -263,7 +263,7 @@
           "task": "Anh Thắng"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -520,7 +520,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -540,7 +540,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -560,7 +560,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -580,7 +580,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -600,7 +600,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -620,7 +620,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -640,7 +640,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -660,7 +660,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -680,7 +680,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -700,7 +700,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -720,7 +720,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -737,7 +737,7 @@
           "task": "Ngân"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -751,7 +751,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -771,7 +771,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -811,7 +811,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -831,7 +831,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -851,7 +851,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -871,7 +871,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -891,7 +891,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -911,7 +911,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -931,7 +931,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -951,7 +951,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -971,7 +971,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -1008,10 +1008,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
-        },
-        {
-          "task": "Tiến"
+          "task": "Anh Hiếu"
         }
       ],
       "status": "Not Started",
@@ -1028,7 +1025,7 @@
       "priority": "1ST",
       "pic": [
         {
-          "task": "Anh Thắng"
+          "task": "Anh Hiếu"
         },
         {
           "task": "Tiến"
@@ -1054,7 +1051,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -1074,7 +1071,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -1091,7 +1088,7 @@
           "task": "Anh Lộc"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1108,7 +1105,7 @@
           "task": "Anh Lộc"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1125,7 +1122,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1142,7 +1139,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1159,7 +1156,7 @@
           "task": "Pending"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1176,7 +1173,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1193,7 +1190,7 @@
           "task": "Anh Lộc"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1210,7 +1207,7 @@
           "task": "Anh Lộc"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1227,7 +1224,7 @@
           "task": "Anh Lộc"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1244,7 +1241,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1261,7 +1258,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1278,7 +1275,7 @@
           "task": "Anh Lộc"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -1295,7 +1292,7 @@
           "task": "Anh Lộc"
         }
       ],
-      "status": "Not Started",
+      "status": "DONE",
       "tasks": []
     },
     {
