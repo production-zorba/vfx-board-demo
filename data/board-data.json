@@ -837,7 +837,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "DONE",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -937,7 +937,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
