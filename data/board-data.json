@@ -777,7 +777,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "WIP",
+      "status": "Not Started",
       "tasks": []
     },
     {
@@ -837,7 +837,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "WIP",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -857,7 +857,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "WIP",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -877,7 +877,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "WIP",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -937,7 +937,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "WIP",
+      "status": "DONE",
       "tasks": []
     },
     {
