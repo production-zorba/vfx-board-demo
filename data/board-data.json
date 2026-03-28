@@ -777,7 +777,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -797,7 +797,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -817,7 +817,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -897,7 +897,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -917,7 +917,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -957,7 +957,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "WIP",
+      "status": "DONE",
       "tasks": []
     },
     {
@@ -977,7 +977,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -994,7 +994,7 @@
           "task": "Anh Hiếu"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -1011,7 +1011,7 @@
           "task": "Anh Hiếu"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
@@ -1031,7 +1031,7 @@
           "task": "Tiến"
         }
       ],
-      "status": "Not Started",
+      "status": "WIP",
       "tasks": []
     },
     {
